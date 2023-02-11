@@ -105,4 +105,6 @@ bot.on('callback_query', async (ctx) => {
     }catch{}
 });
 
+console.log("bot started");
+
 bot.launch();
