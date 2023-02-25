@@ -65,6 +65,7 @@ bot.on('callback_query', async (ctx) => {
         if(data) {
             const msg: Message = await ctx.reply("Загрузка книги /b/" + data + "...");
             try{
+                ctx.answerCbQuery();
                 const resp = await axios.get('http://flibusta.site/b/' + data)
                 const document: Document = new jsdom.JSDOM(resp.data).window.document;
                 const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
@@ -85,14 +86,13 @@ bot.on('callback_query', async (ctx) => {
                 }
 
                 if(fb2) {
-                    await ctx.replyWithDocument({
+                    ctx.replyWithDocument({
                         url: 'http://flibusta.site/b/' + data + '/fb2',
                         filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
                     });
                 }else{
-                    ctx.reply("Ошибка загрузки! :(");
+                    ctx.reply("Ошибка загрузки - нет доступного fb2! :(");
                 }
-                ctx.answerCbQuery();
             }catch {
                 await ctx.telegram.editMessageText(
                     msg.chat.id,
