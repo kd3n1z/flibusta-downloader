@@ -1,7 +1,7 @@
-import { Telegraf } from "telegraf";
+import { Context, NarrowedContext, Telegraf } from "telegraf";
 import jsdom from 'jsdom';
 import axios from "axios";
-import { InlineKeyboardButton, Message } from "telegraf/typings/core/types/typegram";
+import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
 
 require('dotenv').config();
 
@@ -19,14 +19,13 @@ bot.on('message', async (ctx) => {
         if(text) {
             if(text.startsWith("/")) {  
                 if(text.startsWith("/start")) { 
-                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML"});
-                }else if(text.startsWith("/about")) {
-                    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
-                        parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
+                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML", reply_markup: {
                         inline_keyboard: [
-                            [{text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z"}]
+                            [{text: "Про бота", callback_data: "about"}]
                         ]
                     }});
+                }else if(text.startsWith("/about")) {
+                    sendAbout(ctx);
                 }else{
                     ctx.reply('Команда не найдена! 😔');
                 }
@@ -53,7 +52,7 @@ bot.on('message', async (ctx) => {
                                 buttons.push(
                                     [{
                                         text: '📕 ' + (link.parentElement as HTMLElement).textContent as string,
-                                        callback_data: id
+                                        callback_data: "d " + id
                                     }]);
                                 limit--;
                             }
@@ -90,60 +89,74 @@ bot.on('callback_query', async (ctx) => {
     try{
         const data = (ctx.update.callback_query as any).data;
         if(data) {
-            const msg: Message = await ctx.reply("Загрузка книги /b/" + data + " ⌛");
-            try{
-                if(ctx.update.callback_query.message) {
-                    await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
-                }
-                ctx.answerCbQuery();
-                const resp = await axios.get(domain + '/b/' + data)
-                const document: Document = new jsdom.JSDOM(resp.data).window.document;
-                const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
-                await ctx.telegram.editMessageText(
-                        msg.chat.id,
-                        msg.message_id,
-                        undefined,
-                        "Загрузка книги \"" + title + "\" ⌛"
-                    );
-
-                let fb2 = false;
-
-                for(let link of document.querySelectorAll('a')) {
-                    if(link.getAttribute('href') == '/b/' + data + '/fb2') {
-                        fb2 = true;
-                        break;
+            if(data.startsWith('d ')) {
+                let bookId: string = data.slice(2);
+                const msg: Message = await ctx.reply("Загрузка книги /b/" + bookId + " ⌛");
+                try{
+                    if(ctx.update.callback_query.message) {
+                        await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                }
-
-                if(fb2) {
-                    ctx.replyWithDocument({
-                        url: domain + '/b/' + data + '/fb2',
-                        filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
-                    }).then(() => {
-                        ctx.telegram.editMessageText(
+                    ctx.answerCbQuery();
+                    const resp = await axios.get(domain + '/b/' + bookId);
+                    const document: Document = new jsdom.JSDOM(resp.data).window.document;
+                    const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
+                    await ctx.telegram.editMessageText(
                             msg.chat.id,
                             msg.message_id,
                             undefined,
-                            "Загрузка книги \"" + title + "\" ✅"
+                            "Загрузка книги \"" + title + "\" ⌛"
                         );
-                    });
-                }else{
-                    ctx.reply("Ошибка загрузки - нет доступного файла! 😔");
-                    if(!bannedBooks.includes(data)) {
-                        bannedBooks.push(data);
+
+                    let fb2 = false;
+
+                    for(let link of document.querySelectorAll('a')) {
+                        if(link.getAttribute('href') == '/b/' + bookId + '/fb2') {
+                            fb2 = true;
+                            break;
+                        }
                     }
+
+                    if(fb2) {
+                        ctx.replyWithDocument({
+                            url: domain + '/b/' + bookId + '/fb2',
+                            filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
+                        }).then(() => {
+                            ctx.telegram.editMessageText(
+                                msg.chat.id,
+                                msg.message_id,
+                                undefined,
+                                "Загрузка книги \"" + title + "\" ✅"
+                            );
+                        });
+                    }else{
+                        ctx.reply("Ошибка загрузки - нет доступного файла! 😔");
+                        if(!bannedBooks.includes(bookId)) {
+                            bannedBooks.push(bookId);
+                        }
+                    }
+                }catch {
+                    await ctx.telegram.editMessageText(
+                        msg.chat.id,
+                        msg.message_id,
+                        undefined,
+                        "Ошибка загрузки! 😔"
+                    );
                 }
-            }catch {
-                await ctx.telegram.editMessageText(
-                    msg.chat.id,
-                    msg.message_id,
-                    undefined,
-                    "Ошибка загрузки! 😔"
-                );
+            }else if(data == "about") {
+                sendAbout(ctx);
             }
         }
     }catch{}
 });
+
+function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
+    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
+        parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
+        inline_keyboard: [
+            [{text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z"}]
+        ]
+    }});
+}
 
 function getUsedLibs(): string {
     let result: string = '';
