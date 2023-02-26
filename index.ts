@@ -7,18 +7,20 @@ require('dotenv').config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
+let bannedBooks: string[] = [];
+
 bot.on('message', async (ctx) => {
     if(ctx.update.message.chat.type == 'private') {
-        const text = (ctx.update.message as any).text;
+        const text: string = (ctx.update.message as any).text;
         if(text) {
             if(text.startsWith("/")) {  
                 if(text.startsWith("/start")) { 
-                    ctx.reply('Привет! Этот бот поможет тебе в скачивании книг с <a href="http://flibusta.site/">флибусты</a>.\nПросто введи название книги, например, 1984', {parse_mode: "HTML"});
+                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="http://flibusta.site/">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML"});
                 }
                 return;
             }
             try {
-                const msg: Message = await ctx.reply("Ищем книгу \"" + text + "\"...");
+                const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
                 const resp = await axios.get('http://flibusta.site/booksearch?ask=' + encodeURI(text));
 
                 const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
@@ -33,27 +35,39 @@ bot.on('message', async (ctx) => {
                     
                     if((link as HTMLElement).getAttribute('href')) {
                         if(((link as HTMLElement).getAttribute('href') as string).startsWith('/b/')) {
-                            buttons.push(
-                                [{
-                                    text: (link.parentElement as HTMLElement).textContent as string,
-                                    callback_data: link.getAttribute('href')?.split('/')[2] as string
-                                }]);
-                            limit--;
+                            let id: string = link.getAttribute('href')?.split('/')[2] as string;
+                            if(!bannedBooks.includes(id)) {
+                                buttons.push(
+                                    [{
+                                        text: (link.parentElement as HTMLElement).textContent as string,
+                                        callback_data: id
+                                    }]);
+                                limit--;
+                            }
                         }
                     }
                 }
-                await ctx.telegram.editMessageText(
-                    msg.chat.id,
-                    msg.message_id,
-                    undefined,
-                    "Выберите книгу..."
-                );
-                await ctx.telegram.editMessageReplyMarkup(
-                    msg.chat.id,
-                    msg.message_id,
-                    undefined,
-                    {inline_keyboard: buttons}
-                );
+                if(buttons.length > 0) {
+                    await ctx.telegram.editMessageText(
+                        msg.chat.id,
+                        msg.message_id,
+                        undefined,
+                        "Выберите книгу... 📕"
+                    );
+                    await ctx.telegram.editMessageReplyMarkup(
+                        msg.chat.id,
+                        msg.message_id,
+                        undefined,
+                        {inline_keyboard: buttons}
+                    );
+                }else{
+                    await ctx.telegram.editMessageText(
+                        msg.chat.id,
+                        msg.message_id,
+                        undefined,
+                        "Ничего не найдено! 😔"
+                    );
+                }
             } catch {}
         }
     }
@@ -63,8 +77,11 @@ bot.on('callback_query', async (ctx) => {
     try{
         const data = (ctx.update.callback_query as any).data;
         if(data) {
-            const msg: Message = await ctx.reply("Загрузка книги /b/" + data + "...");
+            const msg: Message = await ctx.reply("Загрузка книги /b/" + data + " ⌛");
             try{
+                if(ctx.update.callback_query.message) {
+                    await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
+                }
                 ctx.answerCbQuery();
                 const resp = await axios.get('http://flibusta.site/b/' + data)
                 const document: Document = new jsdom.JSDOM(resp.data).window.document;
@@ -73,7 +90,7 @@ bot.on('callback_query', async (ctx) => {
                         msg.chat.id,
                         msg.message_id,
                         undefined,
-                        "Загрузка книги " + title + "..."
+                        "Загрузка книги \"" + title + "\" ⌛"
                     );
 
                 let fb2 = false;
@@ -89,16 +106,26 @@ bot.on('callback_query', async (ctx) => {
                     ctx.replyWithDocument({
                         url: 'http://flibusta.site/b/' + data + '/fb2',
                         filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
+                    }).then(() => {
+                        ctx.telegram.editMessageText(
+                            msg.chat.id,
+                            msg.message_id,
+                            undefined,
+                            "Загрузка книги \"" + title + "\" ✅"
+                        );
                     });
                 }else{
-                    ctx.reply("Ошибка загрузки - нет доступного fb2! :(");
+                    ctx.reply("Ошибка загрузки - нет доступного файла! 😔");
+                    if(!bannedBooks.includes(data)) {
+                        bannedBooks.push(data);
+                    }
                 }
             }catch {
                 await ctx.telegram.editMessageText(
                     msg.chat.id,
                     msg.message_id,
                     undefined,
-                    "Ошибка загрузки! :("
+                    "Ошибка загрузки! 😔"
                 );
             }
         }
