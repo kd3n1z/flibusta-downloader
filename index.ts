@@ -144,6 +144,7 @@ bot.on('callback_query', async (ctx) => {
                 }
             }else if(data == "about") {
                 sendAbout(ctx);
+                ctx.answerCbQuery();
             }
         }
     }catch{}
