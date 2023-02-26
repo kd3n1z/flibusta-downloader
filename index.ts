@@ -5,7 +5,11 @@ import { InlineKeyboardButton, Message } from "telegraf/typings/core/types/typeg
 
 require('dotenv').config();
 
+let usedLibs: string = getUsedLibs();
+
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
+
+const domain: string = 'http://flibusta.is';
 
 let bannedBooks: string[] = [];
 
@@ -15,13 +19,22 @@ bot.on('message', async (ctx) => {
         if(text) {
             if(text.startsWith("/")) {  
                 if(text.startsWith("/start")) { 
-                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="http://flibusta.site/">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML"});
+                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML"});
+                }else if(text.startsWith("/about")) {
+                    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
+                        parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
+                        inline_keyboard: [
+                            [{text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z"}]
+                        ]
+                    }});
+                }else{
+                    ctx.reply('Команда не найдена! 😔');
                 }
                 return;
             }
             try {
                 const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
-                const resp = await axios.get('http://flibusta.site/booksearch?ask=' + encodeURI(text));
+                const resp = await axios.get(domain + '/booksearch?ask=' + encodeURI(text));
 
                 const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
                 let limit: number = 5;
@@ -39,7 +52,7 @@ bot.on('message', async (ctx) => {
                             if(!bannedBooks.includes(id)) {
                                 buttons.push(
                                     [{
-                                        text: (link.parentElement as HTMLElement).textContent as string,
+                                        text: '📕 ' + (link.parentElement as HTMLElement).textContent as string,
                                         callback_data: id
                                     }]);
                                 limit--;
@@ -52,7 +65,7 @@ bot.on('message', async (ctx) => {
                         msg.chat.id,
                         msg.message_id,
                         undefined,
-                        "Выберите книгу... 📕"
+                        "Выберите книгу..."
                     );
                     await ctx.telegram.editMessageReplyMarkup(
                         msg.chat.id,
@@ -83,7 +96,7 @@ bot.on('callback_query', async (ctx) => {
                     await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                 }
                 ctx.answerCbQuery();
-                const resp = await axios.get('http://flibusta.site/b/' + data)
+                const resp = await axios.get(domain + '/b/' + data)
                 const document: Document = new jsdom.JSDOM(resp.data).window.document;
                 const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
                 await ctx.telegram.editMessageText(
@@ -104,7 +117,7 @@ bot.on('callback_query', async (ctx) => {
 
                 if(fb2) {
                     ctx.replyWithDocument({
-                        url: 'http://flibusta.site/b/' + data + '/fb2',
+                        url: domain + '/b/' + data + '/fb2',
                         filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
                     }).then(() => {
                         ctx.telegram.editMessageText(
@@ -131,6 +144,20 @@ bot.on('callback_query', async (ctx) => {
         }
     }catch{}
 });
+
+function getUsedLibs(): string {
+    let result: string = '';
+    let libs: string[] = Object.keys(require('./package.json').dependencies);
+    let lastLib: string = libs.pop() as string;
+    
+    for(let lib of libs) {
+        if(!lib.startsWith('@')) {
+            result += '<a href="https://www.npmjs.com/package/' + lib + '">' + lib + '</a>, ';
+        }
+    }
+    
+    return result.slice(0, result.length - 2) + ' и <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
+}
 
 console.log("bot started");
 
