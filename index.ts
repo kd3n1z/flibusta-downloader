@@ -13,12 +13,19 @@ const domain: string = 'http://flibusta.is';
 
 let bannedBooks: string[] = [];
 
+let busyUsers: string[] = [];
+
 bot.on('message', async (ctx) => {
     if(ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
         if(text) {
             if(text.startsWith("/")) {  
-                if(text.startsWith("/start")) { 
+                if(text.startsWith("/start")) {
+                    if(busyUsers.includes(ctx.update.message.chat.id.toString())) {
+                        busyUsers = busyUsers.filter(e => {
+                            return e != ctx.update.message.chat.id.toString();
+                        });
+                    }
                     ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML", reply_markup: {
                         inline_keyboard: [
                             [{text: "Про бота", callback_data: "about"}]
@@ -93,10 +100,17 @@ bot.on('callback_query', async (ctx) => {
                 let bookId: string = data.slice(2);
                 const msg: Message = await ctx.reply("Загрузка книги /b/" + bookId + " ⌛");
                 try{
+                    ctx.answerCbQuery();
                     if(ctx.update.callback_query.message) {
+                        if(!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
+                            busyUsers.push(ctx.update.callback_query.message.chat.id.toString());
+                        }else{
+                            ctx.reply('Вы не можете скачивать две книги одновременно ❌');
+                            return;
+                        }
+
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                    ctx.answerCbQuery();
                     const resp = await axios.get(domain + '/b/' + bookId);
                     const document: Document = new jsdom.JSDOM(resp.data).window.document;
                     const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
@@ -117,6 +131,7 @@ bot.on('callback_query', async (ctx) => {
                     }
 
                     if(fb2) {
+                        ctx.sendChatAction("upload_document");
                         ctx.replyWithDocument({
                             url: domain + '/b/' + bookId + '/fb2',
                             filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
@@ -127,9 +142,16 @@ bot.on('callback_query', async (ctx) => {
                                 undefined,
                                 "Загрузка книги \"" + title + "\" ✅"
                             );
+                            removeFromBusy(ctx);
                         });
                     }else{
-                        ctx.reply("Ошибка загрузки - нет доступного файла! 😔");
+                        ctx.telegram.editMessageText(
+                            msg.chat.id,
+                            msg.message_id,
+                            undefined,
+                            "Ошибка загрузки - нет доступного файла! 😔"
+                        );
+                        removeFromBusy(ctx);
                         if(!bannedBooks.includes(bookId)) {
                             bannedBooks.push(bookId);
                         }
@@ -141,6 +163,7 @@ bot.on('callback_query', async (ctx) => {
                         undefined,
                         "Ошибка загрузки! 😔"
                     );
+                    removeFromBusy(ctx);
                 }
             }else if(data == "about") {
                 sendAbout(ctx);
@@ -149,6 +172,16 @@ bot.on('callback_query', async (ctx) => {
         }
     }catch{}
 });
+
+function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
+    if(ctx.update.callback_query.message) {
+        if(busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
+            busyUsers = busyUsers.filter(e => {
+                return e != (ctx.update.callback_query.message as any).chat.id.toString();
+            });
+        }
+    }
+}
 
 function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
     ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
