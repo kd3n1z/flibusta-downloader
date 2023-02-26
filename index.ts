@@ -103,7 +103,12 @@ bot.on('callback_query', async (ctx) => {
                         if(!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
                             busyUsers.push(ctx.update.callback_query.message.chat.id.toString());
                         }else{
-                            ctx.reply('Вы не можете скачивать две книги одновременно ❌');
+                            ctx.telegram.editMessageText(
+                                msg.chat.id,
+                                msg.message_id,
+                                undefined,
+                                'Вы не можете скачивать две книги одновременно ❌'
+                            );
                             return;
                         }
 
