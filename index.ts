@@ -21,11 +21,9 @@ bot.on('message', async (ctx) => {
         if(text) {
             if(text.startsWith("/")) {  
                 if(text.startsWith("/start")) {
-                    if(busyUsers.includes(ctx.update.message.chat.id.toString())) {
-                        busyUsers = busyUsers.filter(e => {
-                            return e != ctx.update.message.chat.id.toString();
-                        });
-                    }
+                    busyUsers = busyUsers.filter(e => {
+                        return e != ctx.update.message.chat.id.toString();
+                    });
                     ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML", reply_markup: {
                         inline_keyboard: [
                             [{text: "Про бота", callback_data: "about"}]
@@ -175,11 +173,9 @@ bot.on('callback_query', async (ctx) => {
 
 function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
     if(ctx.update.callback_query.message) {
-        if(busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
-            busyUsers = busyUsers.filter(e => {
-                return e != (ctx.update.callback_query.message as any).chat.id.toString();
-            });
-        }
+        busyUsers = busyUsers.filter(e => {
+            return e != (ctx.update.callback_query.message as any).chat.id.toString();
+        });
     }
 }
 
