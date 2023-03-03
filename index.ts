@@ -2,6 +2,7 @@ import { Context, NarrowedContext, Telegraf } from "telegraf";
 import jsdom from 'jsdom';
 import axios from "axios";
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
+import { exit } from "process";
 
 require('dotenv').config();
 
@@ -114,7 +115,7 @@ bot.on('callback_query', async (ctx) => {
 
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                    const resp = await axios.get(domain + '/b/' + bookId);
+                    const resp = await axios.get(domain + '/b/' + bookId, {timeout: 5});
                     const document: Document = new jsdom.JSDOM(resp.data).window.document;
                     const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
                     await ctx.telegram.editMessageText(
