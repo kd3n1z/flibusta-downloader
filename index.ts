@@ -16,6 +16,8 @@ let bannedBooks: string[] = [];
 
 let busyUsers: string[] = [];
 
+const timeout = 7000;
+
 bot.on('message', async (ctx) => {
     if(ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
@@ -39,7 +41,7 @@ bot.on('message', async (ctx) => {
             }
             try {
                 const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
-                const resp = await axios.get(domain + '/booksearch?ask=' + encodeURI(text));
+                const resp = await axios.get(domain + '/booksearch?ask=' + encodeURI(text), {timeout: timeout});
 
                 const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
                 let limit: number = 5;
@@ -115,7 +117,7 @@ bot.on('callback_query', async (ctx) => {
 
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                    const resp = await axios.get(domain + '/b/' + bookId, {timeout: 5});
+                    const resp = await axios.get(domain + '/b/' + bookId, {timeout: timeout});
                     const document: Document = new jsdom.JSDOM(resp.data).window.document;
                     const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
                     await ctx.telegram.editMessageText(
