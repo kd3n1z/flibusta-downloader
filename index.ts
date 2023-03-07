@@ -19,6 +19,10 @@ let busyUsers: string[] = [];
 const timeout = 7000;
 
 bot.on('message', async (ctx) => {
+    handleMessage(ctx);
+});
+
+async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) {
     if(ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
         if(text) {
@@ -91,9 +95,13 @@ bot.on('message', async (ctx) => {
             } catch {}
         }
     }
-});
+}
 
 bot.on('callback_query', async (ctx) => {
+    handleQuery(ctx);
+});
+
+async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
     try{
         const data = (ctx.update.callback_query as any).data;
         if(data) {
@@ -177,7 +185,7 @@ bot.on('callback_query', async (ctx) => {
             }
         }
     }catch{}
-});
+}
 
 function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
     if(ctx.update.callback_query.message) {
