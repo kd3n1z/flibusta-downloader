@@ -2,7 +2,6 @@ import { Context, NarrowedContext, Telegraf } from "telegraf";
 import jsdom from 'jsdom';
 import axios from "axios";
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
-import { exit } from "process";
 
 require('dotenv').config();
 
@@ -20,6 +19,10 @@ const timeout = 7000;
 
 bot.on('message', async (ctx) => {
     handleMessage(ctx);
+});
+
+bot.on('callback_query', async (ctx) => {
+    handleQuery(ctx);
 });
 
 async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) {
@@ -96,10 +99,6 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
         }
     }
 }
-
-bot.on('callback_query', async (ctx) => {
-    handleQuery(ctx);
-});
 
 async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
     try{
