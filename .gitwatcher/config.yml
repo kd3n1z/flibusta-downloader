@@ -5,6 +5,5 @@ default:
   cmd: npm i && npm run build && npm start
   shell: bash
   args:
-  - -i
-  - -c
-  - $cmd
+    - -c
+    - source ~/.bashrc || true && $cmd
