@@ -2,5 +2,9 @@
 
 # default config
 default:
-  cmd: source ~/.nvm/nvm.sh && npm i && npm run build && npm start
+  cmd: npm i && npm run build && npm start
   shell: bash
+  args:
+  - -i
+  - -c
+  - $cmd
