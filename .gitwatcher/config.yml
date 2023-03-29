@@ -3,7 +3,3 @@
 # default config
 default:
   cmd: npm i && npm run build && npm start
-  shell: bash
-  args:
-    - -c
-    - source ~/.bashrc || true && $cmd
