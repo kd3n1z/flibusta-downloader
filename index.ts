@@ -2,6 +2,8 @@ import { Context, NarrowedContext, Telegraf } from "telegraf";
 import jsdom from 'jsdom';
 import axios from "axios";
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
+import { flibusta } from "./services/flibusta";
+import { ISearcher } from "./types";
 
 require('dotenv').config();
 
@@ -17,6 +19,8 @@ let busyUsers: string[] = [];
 
 const timeout = 7000;
 
+const searchers: ISearcher[] = [flibusta].sort((a, b) => b.priority - a.priority);
+
 bot.on('message', async (ctx) => {
     handleMessage(ctx);
 });
@@ -26,55 +30,52 @@ bot.on('callback_query', async (ctx) => {
 });
 
 async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) {
-    if(ctx.update.message.chat.type == 'private') {
+    if (ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
-        if(text) {
-            if(text.startsWith("/")) {  
-                if(text.startsWith("/start")) {
+        if (text) {
+            if (text.startsWith("/")) {
+                if (text.startsWith("/start")) {
                     busyUsers = busyUsers.filter(e => {
                         return e != ctx.update.message.chat.id.toString();
                     });
-                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {parse_mode: "HTML", reply_markup: {
-                        inline_keyboard: [
-                            [{text: "Про бота", callback_data: "about"}]
-                        ]
-                    }});
-                }else if(text.startsWith("/about")) {
+                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {
+                        parse_mode: "HTML", reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "Про бота", callback_data: "about" }]
+                            ]
+                        }
+                    });
+                } else if (text.startsWith("/about")) {
                     sendAbout(ctx);
-                }else{
+                } else {
                     ctx.reply('Команда не найдена! 😔');
                 }
                 return;
             }
             try {
                 const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
-                const resp = await axios.get(domain + '/booksearch?ask=' + encodeURI(text), {timeout: timeout});
 
-                const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
-                let limit: number = 5;
+                const limit = 5;
 
                 let buttons: InlineKeyboardButton[][] = [];
 
-                for(const link of links) {
-                    if(limit == 0) {
+                for (const searcher of searchers) {
+                    for (const book of await searcher.search(text, limit, bannedBooks, timeout)) {
+                        if (buttons.length >= limit) {
+                            break;
+                        }
+                        buttons.push(
+                            [{
+                                text: searcher.prefix + ' ' + book.name,
+                                callback_data: "d " + book.bookId
+                            }]);
+                    }
+
+                    if (buttons.length >= limit) {
                         break;
                     }
-                    
-                    if((link as HTMLElement).getAttribute('href')) {
-                        if(((link as HTMLElement).getAttribute('href') as string).startsWith('/b/')) {
-                            let id: string = link.getAttribute('href')?.split('/')[2] as string;
-                            if(!bannedBooks.includes(id)) {
-                                buttons.push(
-                                    [{
-                                        text: '📕 ' + (link.parentElement as HTMLElement).textContent as string,
-                                        callback_data: "d " + id
-                                    }]);
-                                limit--;
-                            }
-                        }
-                    }
                 }
-                if(buttons.length > 0) {
+                if (buttons.length > 0) {
                     await ctx.telegram.editMessageText(
                         msg.chat.id,
                         msg.message_id,
@@ -85,9 +86,9 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         msg.chat.id,
                         msg.message_id,
                         undefined,
-                        {inline_keyboard: buttons}
+                        { inline_keyboard: buttons }
                     );
-                }else{
+                } else {
                     await ctx.telegram.editMessageText(
                         msg.chat.id,
                         msg.message_id,
@@ -95,24 +96,24 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         "Ничего не найдено! 😔"
                     );
                 }
-            } catch {}
+            } catch { }
         }
     }
 }
 
 async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
-    try{
+    try {
         const data = (ctx.update.callback_query as any).data;
-        if(data) {
-            if(data.startsWith('d ')) {
+        if (data) {
+            if (data.startsWith('d ')) {
                 let bookId: string = data.slice(2);
                 const msg: Message = await ctx.reply("Загрузка книги /b/" + bookId + " ⌛");
-                try{
+                try {
                     ctx.answerCbQuery();
-                    if(ctx.update.callback_query.message) {
-                        if(!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
+                    if (ctx.update.callback_query.message) {
+                        if (!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
                             busyUsers.push(ctx.update.callback_query.message.chat.id.toString());
-                        }else{
+                        } else {
                             ctx.telegram.editMessageText(
                                 msg.chat.id,
                                 msg.message_id,
@@ -124,26 +125,26 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
 
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                    const resp = await axios.get(domain + '/b/' + bookId, {timeout: timeout});
+                    const resp = await axios.get(domain + '/b/' + bookId, { timeout: timeout });
                     const document: Document = new jsdom.JSDOM(resp.data).window.document;
                     const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
                     await ctx.telegram.editMessageText(
-                            msg.chat.id,
-                            msg.message_id,
-                            undefined,
-                            "Загрузка книги \"" + title + "\" ⌛"
-                        );
+                        msg.chat.id,
+                        msg.message_id,
+                        undefined,
+                        "Загрузка книги \"" + title + "\" ⌛"
+                    );
 
                     let fb2 = false;
 
-                    for(let link of document.querySelectorAll('a')) {
-                        if(link.getAttribute('href') == '/b/' + bookId + '/fb2') {
+                    for (let link of document.querySelectorAll('a')) {
+                        if (link.getAttribute('href') == '/b/' + bookId + '/fb2') {
                             fb2 = true;
                             break;
                         }
                     }
 
-                    if(fb2) {
+                    if (fb2) {
                         ctx.sendChatAction("upload_document");
                         ctx.replyWithDocument({
                             url: domain + '/b/' + bookId + '/fb2',
@@ -157,7 +158,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                             );
                             removeFromBusy(ctx);
                         });
-                    }else{
+                    } else {
                         ctx.telegram.editMessageText(
                             msg.chat.id,
                             msg.message_id,
@@ -165,11 +166,11 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                             "Ошибка загрузки - нет доступного файла! 😔\nЭта книга больше не появтся в списке."
                         );
                         removeFromBusy(ctx);
-                        if(!bannedBooks.includes(bookId)) {
+                        if (!bannedBooks.includes(bookId)) {
                             bannedBooks.push(bookId);
                         }
                     }
-                }catch {
+                } catch {
                     await ctx.telegram.editMessageText(
                         msg.chat.id,
                         msg.message_id,
@@ -178,16 +179,16 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                     );
                     removeFromBusy(ctx);
                 }
-            }else if(data == "about") {
+            } else if (data == "about") {
                 sendAbout(ctx);
                 ctx.answerCbQuery();
             }
         }
-    }catch{}
+    } catch { }
 }
 
 function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
-    if(ctx.update.callback_query.message) {
+    if (ctx.update.callback_query.message) {
         busyUsers = busyUsers.filter(e => {
             return e != (ctx.update.callback_query.message as any).chat.id.toString();
         });
@@ -195,25 +196,33 @@ function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQue
 }
 
 function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
-    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
+    let searchersInfo = '';
+
+    for (let searcher of searchers) {
+        let info = searcher.info();
+        searchersInfo += '\n' + searcher.prefix + ' <a href="' + info.href + '">' + searcher.name + '</a>';
+    }
+
+    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nДоступные сервисы:' + searchersInfo + '\n\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
         parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
-        inline_keyboard: [
-            [{text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z"}]
-        ]
-    }});
+            inline_keyboard: [
+                [{ text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z" }]
+            ]
+        }
+    });
 }
 
 function getUsedLibs(): string {
     let result: string = '';
     let libs: string[] = Object.keys(require('./package.json').dependencies);
     let lastLib: string = libs.pop() as string;
-    
-    for(let lib of libs) {
-        if(!lib.startsWith('@')) {
+
+    for (let lib of libs) {
+        if (!lib.startsWith('@')) {
             result += '<a href="https://www.npmjs.com/package/' + lib + '">' + lib + '</a>, ';
         }
     }
-    
+
     return result.slice(0, result.length - 2) + ' и <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
 }
 

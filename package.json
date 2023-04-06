@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node ."
+    "start": "node .",
+    "clean": "rm ./*.js"
   },
   "keywords": [],
   "author": "",
