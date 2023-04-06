@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node .",
-    "clean": "rm ./*.js"
+    "clean": "rm ./*.js || true && rm ./services/*.js || true"
   },
   "keywords": [],
   "author": "",

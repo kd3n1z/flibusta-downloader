@@ -9,12 +9,9 @@ const flibusta: ISearcher = {
     'prefix': '📕',
     'priority': 1000,
     'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<Book[]> {
-        console.log('1');
         const resp = await axios.get((this.mirror as string) + '/booksearch?ask=' + encodeURI(query), {timeout: timeout});
-        console.log('2');
-        console.log(resp.data);
 
-        const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.documebannedBooksnt.querySelectorAll("#main>ul>li>a");
+        const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
         
         let result: Book[] = [];
         

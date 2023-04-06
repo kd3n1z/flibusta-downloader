@@ -2,4 +2,4 @@
 
 # default config
 default:
-  cmd: npm run clean || true && npm i && npm run build && npm start
+  cmd: npm run clean && npm i && npm run build && npm start
