@@ -1,7 +1,7 @@
 export interface ISearcher {
     name: string,
     prefix: string,
-    search: (query: string, limit: number, bannedBooks: string[], timeout: number) => Promise<Book[]>,
+    search: (query: string, limit: number, bannedBooks: string[], timeout: number) => Promise<Book[] | null>, // null is error
     info: () => ISearcherInfo,
     priority: number,
     [x: string]: unknown
@@ -14,7 +14,7 @@ export interface ISearcherInfo {
 
 export interface IDownloader {
     name: string,
-    getDownloadUrl: (bookId: string) => string
+    getDownloadUrl: (bookId: string) => string | null // blacklist book if null
 }
 
 export interface Book {

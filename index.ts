@@ -1,9 +1,12 @@
 import { Context, NarrowedContext, Telegraf } from "telegraf";
 import jsdom from 'jsdom';
-import axios from "axios";
+import axios from 'axios';
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
-import { flibusta } from "./services/flibusta";
 import { ISearcher } from "./types";
+
+// services
+import { flibustaSearcher } from "./services/flibusta";
+import { shkolaSearcher } from "./services/shkolainua";
 
 require('dotenv').config();
 
@@ -19,7 +22,7 @@ let busyUsers: string[] = [];
 
 const timeout = 7000;
 
-const searchers: ISearcher[] = [flibusta].sort((a, b) => b.priority - a.priority);
+const searchers: ISearcher[] = [flibustaSearcher, shkolaSearcher].sort((a, b) => b.priority - a.priority);
 
 bot.on('message', async (ctx) => {
     handleMessage(ctx);
@@ -53,6 +56,11 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                 return;
             }
             try {
+                if(text.length > 100) {
+                    await ctx.reply("❌ Запрос слишком длинный.");
+                    return;
+                }
+
                 const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
 
                 const limit = 5;
@@ -60,7 +68,17 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                 let buttons: InlineKeyboardButton[][] = [];
 
                 for (const searcher of searchers) {
-                    for (const book of await searcher.search(text, limit, bannedBooks, timeout)) {
+                    if (buttons.length >= limit) {
+                        break;
+                    }
+
+                    const books = await searcher.search(text, limit, bannedBooks, timeout);
+
+                    if (books == null) {
+                        continue;
+                    }
+
+                    for (const book of books) {
                         if (buttons.length >= limit) {
                             break;
                         }
@@ -69,10 +87,6 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                                 text: searcher.prefix + ' ' + book.name,
                                 callback_data: "d " + book.bookId
                             }]);
-                    }
-
-                    if (buttons.length >= limit) {
-                        break;
                     }
                 }
                 if (buttons.length > 0) {
@@ -107,7 +121,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
         if (data) {
             if (data.startsWith('d ')) {
                 let bookId: string = data.slice(2);
-                const msg: Message = await ctx.reply("Загрузка книги /b/" + bookId + " ⌛");
+                const msg: Message = await ctx.reply("Загрузка книги " + bookId + " ⌛");
                 try {
                     ctx.answerCbQuery();
                     if (ctx.update.callback_query.message) {

@@ -1,18 +1,20 @@
+// TODO: finish or completely remove :)
+
 import axios from 'axios';
 import jsdom from 'jsdom';
 import { Book, ISearcher, ISearcherInfo } from "../types";
 
-const flibustaSearcher: ISearcher = {
-    'mirror': 'http://flibusta.is',
+const fourbookSearcher: ISearcher = {
+    'mirror': 'https://4book.org',
 
-    'name': 'flibusta',
-    'prefix': '📕',
-    'priority': 1000,
+    'name': '4book',
+    'prefix': '📒',
+    'priority': 100,
     'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<Book[] | null> {
         try {
-            const resp = await axios.get((this.mirror as string) + '/booksearch?ask=' + encodeURI(query), { timeout: timeout });
+            const resp = await axios.get((this.mirror as string) + '/search?section=textbook&search=' + encodeURI(query), { timeout: timeout });
 
-            const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
+            const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll('.container>.row a');
 
             let result: Book[] = [];
 
@@ -23,12 +25,12 @@ const flibustaSearcher: ISearcher = {
 
                 const href = (link as HTMLElement).getAttribute('href');
 
-                if (href && href.startsWith('/b/')) {
-                    const id: string = href.split('/')[2];
+                if (href && href.startsWith('/uchebniki-ukraina/')) {
+                    const id: string = href.slice('/uchebniki-ukraina/'.length);
                     if (!bannedBooks.includes(id)) {
                         result.push({
-                            'name': (link.parentElement as HTMLElement).textContent as string,
-                            'downloaderName': 'flibusta',
+                            'name': (link.querySelector("span.title") as HTMLElement).textContent as string,
+                            'downloaderName': '4book',
                             'bookId': id
                         });
                         limit--;
@@ -49,4 +51,4 @@ const flibustaSearcher: ISearcher = {
     }
 };
 
-export { flibustaSearcher };
+export { fourbookSearcher };
