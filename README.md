@@ -1,2 +1,4 @@
 # flibusta-downloader
-powerful telegram-bot that can download books from many services.
+Powerful Telegram bot that can download books from many services.
+
+\>\>\> [@flibustadownloadbot](https://t.me/flibustadownloadbot) \<\<\<
