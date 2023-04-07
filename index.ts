@@ -6,6 +6,7 @@ import { ISearcher, IUser } from "./types";
 // services
 import { flibustaSearcher } from "./services/flibusta";
 import { shkolaSearcher } from "./services/shkolainua";
+import { fantasyworldsSearcher } from "./services/fantasyworlds";
 
 require('dotenv').config();
 
@@ -22,7 +23,8 @@ const timeout = 7000;
 
 const searchers: ISearcher[] = [
     flibustaSearcher,
-    shkolaSearcher
+    shkolaSearcher,
+    fantasyworldsSearcher
 ].sort((a, b) => b.priority - a.priority);
 
 bot.on('message', async (ctx) => {
