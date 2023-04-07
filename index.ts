@@ -34,13 +34,12 @@ bot.on('callback_query', async (ctx) => {
 });
 
 async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) {
-    await addToDatabase(ctx);
-
     if (ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
         if (text) {
             if (text.startsWith("/")) {
                 if (text.startsWith("/start")) {
+                    await addToDatabase(ctx);
                     busyUsers = busyUsers.filter(e => {
                         return e != ctx.update.message.chat.id.toString();
                     });
@@ -71,10 +70,15 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                 const limit = 5;
 
                 let buttons: InlineKeyboardButton[][] = [];
+                const user = await getUser(ctx);
 
                 for (const searcher of searchers) {
                     if (buttons.length >= limit) {
                         break;
+                    }
+
+                    if(user && !user.searchers.includes(searcher.name)) {
+                        continue;
                     }
 
                     const books = await searcher.search(text, limit, bannedBooks, timeout);
@@ -121,8 +125,6 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
 }
 
 async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
-    await addToDatabase(ctx);
-
     try {
         const data: string = (ctx.update.callback_query as any).data;
         if (data) {
@@ -216,32 +218,32 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                 ctx.answerCbQuery();
             } else if (data.startsWith("s")) {
                 try {
-                    ctx.answerCbQuery();
                     if (ctx.update.callback_query.message) {
                         const user = await getUser(ctx);
 
                         if(user) {
-                            let updatedSearchers = user.searchers;
-
-                            const disable = data.split(' ')[2] == 'd';
+                            const disable = data.split(' ')[1] == 'd';
                             const searcherName = data.slice(4); //s e [name] -> [name]
                             
                             if(disable) {
-                                updatedSearchers = updatedSearchers.filter((s) => {s != searcherName});
+                                user.searchers = user.searchers.filter(e => {
+                                    return e != searcherName;
+                                });
                             }else{
-                                if(!updatedSearchers.includes(searcherName)) {
-                                    updatedSearchers.push(searcherName);
+                                if(!user.searchers.includes(searcherName)) {
+                                    user.searchers.push(searcherName);
                                 }
                             }
                             
-                            await updateUser(user.id, {searchers: updatedSearchers});
+                            await updateUser(user.id, {searchers: user.searchers});
     
                             await ctx.telegram.editMessageReplyMarkup(
                                 ctx.update.callback_query.message.chat.id,
                                 ctx.update.callback_query.message.message_id,
                                 undefined,
-                                { inline_keyboard: await genServicesKeyboard(ctx) }
+                                { inline_keyboard: await genServicesKeyboard(user) }
                             );
+                            ctx.answerCbQuery();
                         }
                     }
                 }catch{}
@@ -329,7 +331,7 @@ async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpd
 }
 
 async function sendServices(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
-    let buttons: InlineKeyboardButton[][] = await genServicesKeyboard(ctx);
+    let buttons: InlineKeyboardButton[][] = genServicesKeyboard(await getUser(ctx));
 
     await ctx.reply('Сервисы:', {
         reply_markup: {
@@ -338,12 +340,10 @@ async function sendServices(ctx: NarrowedContext<Context<Update>, Update.Message
     });
 }
 
-async function genServicesKeyboard(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>): Promise<InlineKeyboardButton[][]> {
+function genServicesKeyboard(user: IUser | null): InlineKeyboardButton[][] {
     let buttons: InlineKeyboardButton[][] = [];
 
-    const user = await getUser(ctx);
-
-    if (!user) {
+    if(user == null) {
         return [];
     }
 
