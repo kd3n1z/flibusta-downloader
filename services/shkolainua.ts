@@ -28,7 +28,6 @@ const shkolaSearcher: ISearcher = {
                 console.log(id);
                 result.push({
                     'name': book.title,
-                    'downloaderName': 'shkola',
                     'bookId': id
                 });
                 limit--;

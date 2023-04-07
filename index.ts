@@ -14,8 +14,6 @@ let usedLibs: string = getUsedLibs();
 
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
-const domain: string = 'http://flibusta.is';
-
 let bannedBooks: string[] = [];
 
 let busyUsers: string[] = [];
@@ -41,7 +39,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                     busyUsers = busyUsers.filter(e => {
                         return e != ctx.update.message.chat.id.toString();
                     });
-                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="' + domain + '">флибусты</a>. 📚 Просто отправь мне название любой книги, например, 1984 📕', {
+                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="https://flibusta.is/">флибусты</a> и других сервисов (/services). 📚 Просто отправь мне название любой книги, например, 1984 📕', {
                         parse_mode: "HTML", reply_markup: {
                             inline_keyboard: [
                                 [{ text: "Про бота", callback_data: "about" }]
@@ -85,7 +83,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         buttons.push(
                             [{
                                 text: searcher.prefix + ' ' + book.name,
-                                callback_data: "d " + book.bookId
+                                callback_data: "d " + searcher.name + " " + book.bookId
                             }]);
                     }
                 }
@@ -117,10 +115,11 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
 
 async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
     try {
-        const data = (ctx.update.callback_query as any).data;
+        const data: string = (ctx.update.callback_query as any).data;
         if (data) {
             if (data.startsWith('d ')) {
-                let bookId: string = data.slice(2);
+                const downloaderName = data.split(' ')[1];
+                const bookId: string = data.slice(3 + downloaderName.length);
                 const msg: Message = await ctx.reply("Загрузка книги " + bookId + " ⌛");
                 try {
                     ctx.answerCbQuery();
@@ -139,6 +138,11 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
 
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
+                    
+                    for(const searcher of searchers) {
+                        
+                    }
+
                     const resp = await axios.get(domain + '/b/' + bookId, { timeout: timeout });
                     const document: Document = new jsdom.JSDOM(resp.data).window.document;
                     const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();

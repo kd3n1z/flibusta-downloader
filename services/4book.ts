@@ -30,7 +30,6 @@ const fourbookSearcher: ISearcher = {
                     if (!bannedBooks.includes(id)) {
                         result.push({
                             'name': (link.querySelector("span.title") as HTMLElement).textContent as string,
-                            'downloaderName': '4book',
                             'bookId': id
                         });
                         limit--;

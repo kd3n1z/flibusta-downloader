@@ -28,7 +28,6 @@ const flibustaSearcher: ISearcher = {
                     if (!bannedBooks.includes(id)) {
                         result.push({
                             'name': (link.parentElement as HTMLElement).textContent as string,
-                            'downloaderName': 'flibusta',
                             'bookId': id
                         });
                         limit--;
