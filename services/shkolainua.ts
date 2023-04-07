@@ -1,6 +1,6 @@
 import axios from 'axios';
 import jsdom from 'jsdom';
-import { Book, IDownloadData, ISearcher, ISearcherInfo } from "../types";
+import { IBook, IDownloadData, ISearcher, ISearcherInfo } from "../types";
 
 const shkolaSearcher: ISearcher = {
     'mirror': 'https://shkola.in.ua',
@@ -8,7 +8,7 @@ const shkolaSearcher: ISearcher = {
     'name': 'shkola',
     'prefix': '📒',
     'priority': 100,
-    'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<Book[] | null> {
+    'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<IBook[] | null> {
         try {
             const resp = await axios.post((this.mirror as string) + '/search.html?ordering=&areas[0]=content&searchphrase=all&tmpl=raw&type=json', { "searchword": encodeURI(query) }, {
                 headers: {
@@ -16,7 +16,7 @@ const shkolaSearcher: ISearcher = {
                 }, timeout: timeout
             });
 
-            let result: Book[] = [];
+            let result: IBook[] = [];
 
             for (const book of resp.data.results) {
                 if (limit == 0) {

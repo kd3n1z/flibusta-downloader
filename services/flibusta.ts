@@ -1,6 +1,6 @@
 import axios from 'axios';
 import jsdom from 'jsdom';
-import { Book, IDownloadData, ISearcher, ISearcherInfo } from "../types";
+import { IBook, IDownloadData, ISearcher, ISearcherInfo } from "../types";
 
 const flibustaSearcher: ISearcher = {
     'mirror': 'http://flibusta.is',
@@ -8,13 +8,13 @@ const flibustaSearcher: ISearcher = {
     'name': 'flibusta',
     'prefix': '📕',
     'priority': 1000,
-    'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<Book[] | null> {
+    'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<IBook[] | null> {
         try {
             const resp = await axios.get((this.mirror as string) + '/booksearch?ask=' + encodeURI(query), { timeout: timeout });
 
             const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
 
-            let result: Book[] = [];
+            let result: IBook[] = [];
 
             for (const link of links) {
                 if (limit == 0) {
