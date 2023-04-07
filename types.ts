@@ -2,26 +2,26 @@ export interface ISearcher {
     name: string,
     prefix: string,
     priority: number,
-    search: (query: string, limit: number, bannedBooks: string[], timeout: number) => Promise<Book[] | null>, // null is error
-    getDownloadData: (bookId: string) => IDownloadData
+    search: (query: string, limit: number, bannedBooks: string[], timeout: number) => Promise<Book[] | null>,
+    getDownloadData: (bookId: string, timeout: number) => Promise<IDownloadData | null>,
     info: () => ISearcherInfo,
     [x: string]: unknown
 }
 
 export interface ISearcherInfo {
     href: string,
-    name: string,
+    name: string
 }
 
 export interface IDownloadData {
     url: string,
     name: string,
-    error: boolean
+    fileExtension: string
 }
 
 export interface Book {
     name: string,
-    bookId: string,
+    bookId: string
 }
 
 export interface User {

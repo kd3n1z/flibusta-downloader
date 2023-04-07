@@ -1,6 +1,6 @@
 import axios from 'axios';
 import jsdom from 'jsdom';
-import { Book, ISearcher, ISearcherInfo } from "../types";
+import { Book, IDownloadData, ISearcher, ISearcherInfo } from "../types";
 
 const flibustaSearcher: ISearcher = {
     'mirror': 'http://flibusta.is',
@@ -44,6 +44,38 @@ const flibustaSearcher: ISearcher = {
         return {
             'href': this.mirror as string,
             'name': this.name
+        };
+    },
+    getDownloadData: async function (bookId: string, timeout: number): Promise<IDownloadData | null> {
+        try {
+            const resp = await axios.get((this.mirror as string) + '/b/' + bookId, { timeout: timeout });
+            const document: Document = new jsdom.JSDOM(resp.data).window.document;
+            const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
+
+            let fb2 = false;
+
+            for (let link of document.querySelectorAll('a')) {
+                if (link.getAttribute('href') == '/b/' + bookId + '/fb2') {
+                    fb2 = true;
+                    break;
+                }
+            }
+
+            if (fb2) {
+                return {
+                    name: title,
+                    url: (this.mirror as string) + '/b/' + bookId + '/fb2',
+                    fileExtension: "zip"
+                }
+            }
+
+            return {
+                name: "ban",
+                url: "ban",
+                fileExtension: "ban"
+            }
+        } catch {
+            return null;
         }
     }
 };

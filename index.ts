@@ -20,7 +20,10 @@ let busyUsers: string[] = [];
 
 const timeout = 7000;
 
-const searchers: ISearcher[] = [flibustaSearcher, shkolaSearcher].sort((a, b) => b.priority - a.priority);
+const searchers: ISearcher[] = [
+    flibustaSearcher, 
+    shkolaSearcher
+].sort((a, b) => b.priority - a.priority);
 
 bot.on('message', async (ctx) => {
     handleMessage(ctx);
@@ -54,7 +57,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                 return;
             }
             try {
-                if(text.length > 100) {
+                if (text.length > 100) {
                     await ctx.reply("❌ Запрос слишком длинный.");
                     return;
                 }
@@ -120,7 +123,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
             if (data.startsWith('d ')) {
                 const downloaderName = data.split(' ')[1];
                 const bookId: string = data.slice(3 + downloaderName.length);
-                const msg: Message = await ctx.reply("Загрузка книги " + bookId + " ⌛");
+                const msg: Message = await ctx.reply("Загрузка книги " + downloaderName + "/" + bookId + " ⌛");
                 try {
                     ctx.answerCbQuery();
                     if (ctx.update.callback_query.message) {
@@ -138,65 +141,57 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
 
                         await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                     }
-                    
-                    for(const searcher of searchers) {
-                        
-                    }
 
-                    const resp = await axios.get(domain + '/b/' + bookId, { timeout: timeout });
-                    const document: Document = new jsdom.JSDOM(resp.data).window.document;
-                    const title: string = (document.querySelectorAll("#main>a")[0].textContent as string).trim() + " - " + (document.querySelector(".title")?.textContent as string).split('(fb2)')[0].trim();
-                    await ctx.telegram.editMessageText(
-                        msg.chat.id,
-                        msg.message_id,
-                        undefined,
-                        "Загрузка книги \"" + title + "\" ⌛"
-                    );
+                    for (const searcher of searchers) {
+                        if (searcher.name == downloaderName) {
+                            const downloadData = await searcher.getDownloadData(bookId, timeout);
 
-                    let fb2 = false;
+                            if (downloadData == null) {
+                                await ctx.telegram.editMessageText(
+                                    msg.chat.id,
+                                    msg.message_id,
+                                    undefined,
+                                    "Ошибка загрузки! 😔"
+                                );
+                                removeFromBusy(ctx);
+                            } else if (downloadData.url == "ban") {
+                                ctx.telegram.editMessageText(
+                                    msg.chat.id,
+                                    msg.message_id,
+                                    undefined,
+                                    "Ошибка загрузки - нет доступного файла! 😔"
+                                );
+                                if (!bannedBooks.includes(bookId)) {
+                                    bannedBooks.push(bookId);
+                                }
+                                removeFromBusy(ctx);
+                            } else {
+                                await ctx.telegram.editMessageText(
+                                    msg.chat.id,
+                                    msg.message_id,
+                                    undefined,
+                                    "Загрузка книги \"" + downloadData.name + "\" ⌛"
+                                );
 
-                    for (let link of document.querySelectorAll('a')) {
-                        if (link.getAttribute('href') == '/b/' + bookId + '/fb2') {
-                            fb2 = true;
-                            break;
+                                ctx.sendChatAction("upload_document");
+                                ctx.replyWithDocument({
+                                    url: downloadData.url,
+                                    filename: downloadData.name.replace(/[^ёа-яa-z0-9-]/gi, "") + "." + downloadData.fileExtension
+                                }).then(() => {
+                                    ctx.telegram.editMessageText(
+                                        msg.chat.id,
+                                        msg.message_id,
+                                        undefined,
+                                        "Загрузка книги \"" + downloadData.name + "\" ✅"
+                                    );
+                                    removeFromBusy(ctx);
+                                });
+                            }
+
+                            return;
                         }
                     }
-
-                    if (fb2) {
-                        ctx.sendChatAction("upload_document");
-                        ctx.replyWithDocument({
-                            url: domain + '/b/' + bookId + '/fb2',
-                            filename: title.replace(/[^ёа-яa-z0-9-]/gi, "") + ".zip"
-                        }).then(() => {
-                            ctx.telegram.editMessageText(
-                                msg.chat.id,
-                                msg.message_id,
-                                undefined,
-                                "Загрузка книги \"" + title + "\" ✅"
-                            );
-                            removeFromBusy(ctx);
-                        });
-                    } else {
-                        ctx.telegram.editMessageText(
-                            msg.chat.id,
-                            msg.message_id,
-                            undefined,
-                            "Ошибка загрузки - нет доступного файла! 😔\nЭта книга больше не появтся в списке."
-                        );
-                        removeFromBusy(ctx);
-                        if (!bannedBooks.includes(bookId)) {
-                            bannedBooks.push(bookId);
-                        }
-                    }
-                } catch {
-                    await ctx.telegram.editMessageText(
-                        msg.chat.id,
-                        msg.message_id,
-                        undefined,
-                        "Ошибка загрузки! 😔"
-                    );
-                    removeFromBusy(ctx);
-                }
+                } catch { }
             } else if (data == "about") {
                 sendAbout(ctx);
                 ctx.answerCbQuery();
