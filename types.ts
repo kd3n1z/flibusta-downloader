@@ -29,3 +29,7 @@ export interface IUser {
     searchers: string[],
     totalBooksDownloaded: number
 }
+
+export interface ILanguage {
+    displayName: string
+}

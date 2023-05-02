@@ -1,7 +1,9 @@
+import { readFileSync, readdirSync } from "fs";
+import path from "path";
 import { Context, NarrowedContext, Telegraf } from "telegraf";
 import { Collection, MatchKeysAndValues, MongoClient, OptionalId, ServerApiVersion } from "mongodb";
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
-import { ISearcher, IUser } from "./types";
+import { ISearcher, IUser, ILanguage } from "./types";
 
 // services
 import { flibustaSearcher } from "./services/flibusta";
@@ -20,6 +22,8 @@ let bannedBooks: string[] = [];
 let busyUsers: string[] = [];
 
 const timeout = 7000;
+
+let languages = new Map<string, ILanguage>([]);
 
 const searchers: ISearcher[] = [
     flibustaSearcher,
@@ -370,6 +374,13 @@ function getUsedLibs(): string {
     }
 
     return result.slice(0, result.length - 2) + ' и <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
+}
+
+console.log("loading languages...");
+for(const file of readdirSync("languages")) {
+    console.log("\t" + file + "...");
+    const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), {encoding: 'utf-8'}));
+    languages.set(path.basename(file).split('.')[0], lang);
 }
 
 console.log("connecting to mongo...");
