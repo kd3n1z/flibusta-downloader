@@ -15,6 +15,7 @@ require('dotenv').config();
 const mongoClient = new MongoClient(process.env.MONGO_URL as string, { serverApi: ServerApiVersion.v1 });
 let usersCollection: Collection<Document> | null = null;
 
+const defaultUser: IUser = { id: -1, totalBooksDownloaded: 0, searchers: ['flibusta'], language: 'russian' };
 const usedLibs: string = getUsedLibs();
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
@@ -24,6 +25,7 @@ let busyUsers: string[] = [];
 const timeout = 7000;
 
 let languages = new Map<string, ILanguage>([]);
+let deafultLang: ILanguage = {} as ILanguage;
 
 const searchers: ISearcher[] = [
     flibustaSearcher,
@@ -32,14 +34,27 @@ const searchers: ISearcher[] = [
 ].sort((a, b) => b.priority - a.priority);
 
 bot.on('message', async (ctx) => {
-    handleMessage(ctx);
+    (async () => {
+        try{
+            await handleMessage(ctx);
+        }catch{}
+    })();
 });
 
 bot.on('callback_query', async (ctx) => {
-    handleQuery(ctx);
+    (async () => {
+        try{
+            await handleQuery(ctx);
+        }catch{}
+    })();
 });
 
+
 async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) {
+    const user = await getUser(ctx);
+
+    const language: ILanguage = languages.get(user.language) ?? deafultLang;
+
     if (ctx.update.message.chat.type == 'private') {
         const text: string = (ctx.update.message as any).text;
         if (text) {
@@ -49,10 +64,10 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                     busyUsers = busyUsers.filter(e => {
                         return e != ctx.update.message.chat.id.toString();
                     });
-                    ctx.reply('Привет! 👋 Я помогу тебе в скачивании книг с <a href="https://flibusta.is/">флибусты</a> и других сервисов (/services). 📚 Просто отправь мне название любой книги, например, 1984 📕', {
+                    ctx.reply(language.start, {
                         parse_mode: "HTML", reply_markup: {
                             inline_keyboard: [
-                                [{ text: "Про бота", callback_data: "about" }]
+                                [{ text: language.aboutButton, callback_data: "about" }]
                             ]
                         }
                     });
@@ -61,22 +76,21 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                 } else if (text.startsWith("/services")) {
                     await sendServices(ctx);
                 } else {
-                    ctx.reply('Команда не найдена! 😔');
+                    ctx.reply(language.errorCommandNotFound);
                 }
                 return;
             }
             try {
                 if (text.length > 100) {
-                    await ctx.reply("❌ Запрос слишком длинный.");
+                    await ctx.reply(language.errorQueryTooLong);
                     return;
                 }
 
-                const msg: Message = await ctx.reply("Ищем книгу \"" + (text.length <= 20 ? text : text.slice(0, 20) + "...") + "\" ⌛");
+                const msg: Message = await ctx.reply(language.searching.replaceAll("%query", (text.length <= 20 ? text : text.slice(0, 20) + "...")));
 
                 const limit = 5;
 
                 let buttons: InlineKeyboardButton[][] = [];
-                const user = await getUser(ctx);
 
                 for (const searcher of searchers) {
                     if (buttons.length >= limit) {
@@ -109,7 +123,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         msg.chat.id,
                         msg.message_id,
                         undefined,
-                        "Выберите книгу..."
+                        language.bookMenu
                     );
                     await ctx.telegram.editMessageReplyMarkup(
                         msg.chat.id,
@@ -122,7 +136,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         msg.chat.id,
                         msg.message_id,
                         undefined,
-                        "Ничего не найдено! 😔 Попробуй проверить список включеных сервисов (/services)."
+                        language.notFound
                     );
                 }
             } catch { }
@@ -131,131 +145,130 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
 }
 
 async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>) {
-    try {
-        const data: string = (ctx.update.callback_query as any).data;
-        if (data) {
-            if (data.startsWith('d ')) {
-                const user = await getUser(ctx);
-                if (user) {
-                    updateUser(user.id, { totalBooksDownloaded: user.totalBooksDownloaded + 1 });
+    const user = await getUser(ctx);
+    const data: string = (ctx.update.callback_query as any).data;
+
+    const language: ILanguage = languages.get(user.language) ?? deafultLang;
+
+    if (data) {
+        if (data.startsWith('d ')) {
+            if (user) {
+                await updateUser(user.id, { totalBooksDownloaded: user.totalBooksDownloaded + 1 });
+            }
+
+            const downloaderName: string = data.split(' ')[1];
+            const bookId: string = data.slice(3 + downloaderName.length);
+            const msg: Message = await ctx.reply(language.downloading.replaceAll("%bookName", downloaderName + "/" + bookId));
+            try {
+                ctx.answerCbQuery();
+                if (ctx.update.callback_query.message) {
+                    if (!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
+                        busyUsers.push(ctx.update.callback_query.message.chat.id.toString());
+                    } else {
+                        ctx.telegram.editMessageText(
+                            msg.chat.id,
+                            msg.message_id,
+                            undefined,
+                            language.errorAlreadyDownloading
+                        );
+                        return;
+                    }
+
+                    await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
                 }
 
-                const downloaderName: string = data.split(' ')[1];
-                const bookId: string = data.slice(3 + downloaderName.length);
-                const msg: Message = await ctx.reply("Загрузка книги " + downloaderName + "/" + bookId + " ⌛");
-                try {
-                    ctx.answerCbQuery();
-                    if (ctx.update.callback_query.message) {
-                        if (!busyUsers.includes(ctx.update.callback_query.message.chat.id.toString())) {
-                            busyUsers.push(ctx.update.callback_query.message.chat.id.toString());
-                        } else {
+                for (const searcher of searchers) {
+                    if (searcher.name == downloaderName) {
+                        const downloadData = await searcher.getDownloadData(bookId, timeout);
+
+                        if (downloadData == null) {
+                            await ctx.telegram.editMessageText(
+                                msg.chat.id,
+                                msg.message_id,
+                                undefined,
+                                language.errorDownloadFailed
+                            );
+                            removeFromBusy(ctx);
+                        } else if (downloadData.url == "ban") {
                             ctx.telegram.editMessageText(
                                 msg.chat.id,
                                 msg.message_id,
                                 undefined,
-                                'Вы не можете скачивать две книги одновременно ❌'
+                                language.errorNotAvailable
                             );
-                            return;
-                        }
+                            if (!bannedBooks.includes(bookId)) {
+                                bannedBooks.push(bookId);
+                            }
+                            removeFromBusy(ctx);
+                        } else {
+                            await ctx.telegram.editMessageText(
+                                msg.chat.id,
+                                msg.message_id,
+                                undefined,
+                                language.downloading.replaceAll("%bookName", '"' + downloadData.name + '"')
+                            );
 
-                        await ctx.telegram.deleteMessage(ctx.update.callback_query.message.chat.id, ctx.update.callback_query.message.message_id);
-                    }
-
-                    for (const searcher of searchers) {
-                        if (searcher.name == downloaderName) {
-                            const downloadData = await searcher.getDownloadData(bookId, timeout);
-
-                            if (downloadData == null) {
-                                await ctx.telegram.editMessageText(
-                                    msg.chat.id,
-                                    msg.message_id,
-                                    undefined,
-                                    "Ошибка загрузки! 😔"
-                                );
-                                removeFromBusy(ctx);
-                            } else if (downloadData.url == "ban") {
+                            ctx.sendChatAction("upload_document");
+                            ctx.replyWithDocument({
+                                url: downloadData.url,
+                                filename: downloadData.name.replace(/[^ёа-яa-z0-9-]/gi, "") + "." + downloadData.fileExtension
+                            }).then(() => {
                                 ctx.telegram.editMessageText(
                                     msg.chat.id,
                                     msg.message_id,
                                     undefined,
-                                    "Ошибка загрузки - нет доступного файла! 😔"
+                                    language.downloaded.replaceAll("%bookName", '"' + downloadData.name + '"')
                                 );
-                                if (!bannedBooks.includes(bookId)) {
-                                    bannedBooks.push(bookId);
-                                }
                                 removeFromBusy(ctx);
-                            } else {
-                                await ctx.telegram.editMessageText(
-                                    msg.chat.id,
-                                    msg.message_id,
-                                    undefined,
-                                    "Загрузка книги \"" + downloadData.name + "\" ⌛"
-                                );
-
-                                ctx.sendChatAction("upload_document");
-                                ctx.replyWithDocument({
-                                    url: downloadData.url,
-                                    filename: downloadData.name.replace(/[^ёа-яa-z0-9-]/gi, "") + "." + downloadData.fileExtension
-                                }).then(() => {
-                                    ctx.telegram.editMessageText(
-                                        msg.chat.id,
-                                        msg.message_id,
-                                        undefined,
-                                        "Загрузка книги \"" + downloadData.name + "\" ✅"
-                                    );
-                                    removeFromBusy(ctx);
-                                });
-                            }
-                            return;
+                            });
                         }
+                        return;
                     }
+                }
 
-                    removeFromBusy(ctx);
+                removeFromBusy(ctx);
 
-                    await ctx.telegram.editMessageText(
-                        msg.chat.id,
-                        msg.message_id,
-                        undefined,
-                        "Ошибка загрузки! 😔 Возможно, книга больше недоступна."
-                    );
-                } catch { }
-            } else if (data == "about") {
-                await sendAbout(ctx);
-                ctx.answerCbQuery();
-            } else if (data.startsWith("s")) {
-                try {
-                    if (ctx.update.callback_query.message) {
-                        const user = await getUser(ctx);
-
-                        if(user) {
-                            const disable = data.split(' ')[1] == 'd';
-                            const searcherName = data.slice(4); //s e [name] -> [name]
-                            
-                            if(disable) {
-                                user.searchers = user.searchers.filter(e => {
-                                    return e != searcherName;
-                                });
-                            }else{
-                                if(!user.searchers.includes(searcherName)) {
-                                    user.searchers.push(searcherName);
-                                }
+                await ctx.telegram.editMessageText(
+                    msg.chat.id,
+                    msg.message_id,
+                    undefined,
+                    language.errorNotAvailableAnymore
+                );
+            } catch { }
+        } else if (data == "about") {
+            await sendAbout(ctx);
+            ctx.answerCbQuery();
+        } else if (data.startsWith("s")) {
+            try {
+                if (ctx.update.callback_query.message) {
+                    if(user) {
+                        const disable = data.split(' ')[1] == 'd';
+                        const searcherName = data.slice(4); //s e/d [name] -> [name]
+                        
+                        if(disable) {
+                            user.searchers = user.searchers.filter(e => {
+                                return e != searcherName;
+                            });
+                        }else{
+                            if(!user.searchers.includes(searcherName)) {
+                                user.searchers.push(searcherName);
                             }
-                            
-                            await updateUser(user.id, {searchers: user.searchers});
-    
-                            await ctx.telegram.editMessageReplyMarkup(
-                                ctx.update.callback_query.message.chat.id,
-                                ctx.update.callback_query.message.message_id,
-                                undefined,
-                                { inline_keyboard: await genServicesKeyboard(user) }
-                            );
-                            ctx.answerCbQuery();
                         }
+                        
+                        await updateUser(user.id, {searchers: user.searchers});
+
+                        await ctx.telegram.editMessageReplyMarkup(
+                            ctx.update.callback_query.message.chat.id,
+                            ctx.update.callback_query.message.message_id,
+                            undefined,
+                            { inline_keyboard: await genServicesKeyboard(user) }
+                        );
+                        ctx.answerCbQuery();
                     }
-                }catch{}
-            }
+                }
+            }catch{}
         }
-    } catch { }
+    }
 }
 
 async function addToDatabase(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
@@ -266,15 +279,15 @@ async function addToDatabase(ctx: NarrowedContext<Context<Update>, Update.Messag
     const user = await usersCollection.findOne({ id: ctx.from.id });
 
     if (!user) {
-        const userDoc: IUser = { id: ctx.from.id, totalBooksDownloaded: 0, searchers: ['flibusta'] };
+        const userDoc: IUser = {...defaultUser};
 
-        await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (or maybe no...)
+        await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (maybe no...)
     }
 }
 
-async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>): Promise<IUser | null> {
+async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>): Promise<IUser> {
     if (!usersCollection || !ctx.from) {
-        return null;
+        return {...defaultUser};
     }
 
     let user = await usersCollection.findOne({ id: ctx.from.id }) as any;
@@ -282,13 +295,11 @@ async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdat
     if (user != null) {
         let needToUpdate = false;
 
-        if (!user.searchers) {
-            user.searchers = [];
-            needToUpdate = true;
-        }
-        if (!user.totalBooksDownloaded) {
-            user.totalBooksDownloaded = 0;
-            needToUpdate = true;
+        for(const key of Object.keys(defaultUser)) {
+            if(user[key] == null) {
+                user[key] = (defaultUser as any)[key];
+                needToUpdate = true;
+            }
         }
 
         if (needToUpdate) {
@@ -298,7 +309,11 @@ async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdat
         return user as IUser;
     }
 
-    return null;
+    const userDoc: IUser = {...defaultUser};
+    userDoc.id = ctx.from.id;
+    await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (maybe no...)
+
+    return await usersCollection.findOne({ id: ctx.from.id }) as any;
 }
 
 async function updateUser(id: number, set: MatchKeysAndValues<Document> | undefined) {
@@ -381,20 +396,25 @@ for(const file of readdirSync("languages")) {
     console.log("\t" + file + "...");
     const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), {encoding: 'utf-8'}));
     languages.set(path.basename(file).split('.')[0], lang);
+    deafultLang = lang;
 }
 
-console.log("connecting to mongo...");
-if (process.env.MONGO_DB) {
-    mongoClient.connect().then(() => {
-        usersCollection = mongoClient.db(process.env.MONGO_DB as string).collection("users");
-        if (usersCollection == null) {
-            console.log("error: users collection is null");
-            mongoClient.close();
-            return;
-        }
-        console.log("done, launching bot...");
-        bot.launch();
-    });
-} else {
-    console.log("error: db name not specified");
+if(deafultLang) {
+    console.log("connecting to mongo...");
+    if (process.env.MONGO_DB) {
+        mongoClient.connect().then(() => {
+            usersCollection = mongoClient.db(process.env.MONGO_DB as string).collection("users");
+            if (usersCollection == null) {
+                console.log("error: users collection is null");
+                mongoClient.close();
+                return;
+            }
+            console.log("done, launching bot...");
+            bot.launch();
+        });
+    } else {
+        console.log("error: db name not specified");
+    }
+}else{
+    console.log("error: no default language");
 }

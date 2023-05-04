@@ -27,9 +27,23 @@ export interface IBook {
 export interface IUser {
     id: number,
     searchers: string[],
-    totalBooksDownloaded: number
+    totalBooksDownloaded: number,
+    language: string
 }
 
 export interface ILanguage {
-    displayName: string
+    displayName: string,
+    start: string,
+    aboutButton: string,
+    errorCommandNotFound: string,
+    errorQueryTooLong: string,
+    searching: string,
+    notFound: string,
+    bookMenu: string,
+    errorAlreadyDownloading: string,
+    downloaded: string,
+    downloading: string,
+    errorDownloadFailed: string,
+    errorNotAvailable: string,
+    errorNotAvailableAnymore: string
 }
