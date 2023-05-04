@@ -60,7 +60,6 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
         if (text) {
             if (text.startsWith("/")) {
                 if (text.startsWith("/start")) {
-                    await addToDatabase(ctx);
                     busyUsers = busyUsers.filter(e => {
                         return e != ctx.update.message.chat.id.toString();
                     });
@@ -268,20 +267,6 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                 }
             }catch{}
         }
-    }
-}
-
-async function addToDatabase(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
-    if (!usersCollection || !ctx.from) {
-        return;
-    }
-
-    const user = await usersCollection.findOne({ id: ctx.from.id });
-
-    if (!user) {
-        const userDoc: IUser = {...defaultUser};
-
-        await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (maybe no...)
     }
 }
 
