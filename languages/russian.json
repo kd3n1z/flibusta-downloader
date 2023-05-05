@@ -17,6 +17,7 @@
     "about": "Бот разработан <a href=\"https://github.com/KD3n1z\">Денисом Комарьковым</a> 🇺🇦\n\nИспользованы библиотеки %usedLibs\n\nДоступные сервисы: %searchersInfo\n\nВсего пользователей: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
     "usedLibsAnd": " и",
 
+    "services": "Сервисы:",
     "serviceEnabled": "%service - включен ✅",
     "serviceDisabled": "%service - выключен ❌",
 

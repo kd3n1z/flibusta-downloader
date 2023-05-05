@@ -360,7 +360,7 @@ async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpd
 async function sendServices(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
     const buttons: InlineKeyboardButton[][] = genServicesKeyboard(await getUser(ctx), language);
 
-    await ctx.reply('Сервисы:', {
+    await ctx.reply(language.services, {
         reply_markup: {
             inline_keyboard: buttons
         }

@@ -17,6 +17,7 @@
     "about": "Developed by <a href=\"https://github.com/KD3n1z\">Denis Komarkov</a> 🇺🇦\n\nLibraries used: %usedLibs\n\nServices available: %searchersInfo\n\nUser count: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
     "usedLibsAnd": " and",
 
+    "services": "Services:",
     "serviceEnabled": "%service - enabled ✅",
     "serviceDisabled": "%service - disabled ❌",
 

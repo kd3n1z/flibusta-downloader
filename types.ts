@@ -51,5 +51,6 @@ export interface ILanguage {
     usedLibsAnd: string,
     serviceEnabled: string
     serviceDisabled: string,
-    donateButton: string
+    donateButton: string,
+    services: string
 }
