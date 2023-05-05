@@ -16,7 +16,7 @@ const mongoClient = new MongoClient(process.env.MONGO_URL as string, { serverApi
 let usersCollection: Collection<Document> | null = null;
 
 const defaultUser: IUser = { id: -1, totalBooksDownloaded: 0, searchers: ['flibusta'], language: 'russian' };
-const usedLibs: string = getUsedLibs();
+const usedLibs: string = genUsedLibs();
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
 let bannedBooks: string[] = [];
@@ -71,9 +71,11 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         }
                     });
                 } else if (text.startsWith("/about")) {
-                    await sendAbout(ctx);
+                    await sendAbout(ctx, language);
                 } else if (text.startsWith("/services")) {
-                    await sendServices(ctx);
+                    await sendServices(ctx, language);
+                }  else if (text.startsWith("/lang")) {
+                    await sendLanguages(ctx);
                 } else {
                     ctx.reply(language.errorCommandNotFound);
                 }
@@ -235,37 +237,52 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                 );
             } catch { }
         } else if (data == "about") {
-            await sendAbout(ctx);
+            await sendAbout(ctx, language);
             ctx.answerCbQuery();
-        } else if (data.startsWith("s")) {
-            try {
-                if (ctx.update.callback_query.message) {
-                    if(user) {
-                        const disable = data.split(' ')[1] == 'd';
-                        const searcherName = data.slice(4); //s e/d [name] -> [name]
-                        
-                        if(disable) {
-                            user.searchers = user.searchers.filter(e => {
-                                return e != searcherName;
-                            });
-                        }else{
-                            if(!user.searchers.includes(searcherName)) {
-                                user.searchers.push(searcherName);
-                            }
+        } else if (data.startsWith("sl ")) {
+            if (ctx.update.callback_query.message) {
+                user.language = data.slice(3); //sl english -> english
+                await updateUser(user.id, {language: user.language});
+                await ctx.telegram.editMessageText(
+                    ctx.update.callback_query.message.chat.id,
+                    ctx.update.callback_query.message.message_id,
+                    undefined,
+                    await genCurrentLangText(ctx),
+                    {
+                        reply_markup: {
+                            inline_keyboard: genLangButtons()
                         }
-                        
-                        await updateUser(user.id, {searchers: user.searchers});
-
-                        await ctx.telegram.editMessageReplyMarkup(
-                            ctx.update.callback_query.message.chat.id,
-                            ctx.update.callback_query.message.message_id,
-                            undefined,
-                            { inline_keyboard: await genServicesKeyboard(user) }
-                        );
-                        ctx.answerCbQuery();
                     }
+                );
+                ctx.answerCbQuery();
+            }
+        } else if (data.startsWith("s ")) {
+            if (ctx.update.callback_query.message) {
+                if(user) {
+                    const disable = data.split(' ')[1] == 'd';
+                    const searcherName = data.slice(4); //s e/d [name] -> [name]
+                    
+                    if(disable) {
+                        user.searchers = user.searchers.filter(e => {
+                            return e != searcherName;
+                        });
+                    }else{
+                        if(!user.searchers.includes(searcherName)) {
+                            user.searchers.push(searcherName);
+                        }
+                    }
+                    
+                    await updateUser(user.id, {searchers: user.searchers});
+
+                    await ctx.telegram.editMessageReplyMarkup(
+                        ctx.update.callback_query.message.chat.id,
+                        ctx.update.callback_query.message.message_id,
+                        undefined,
+                        { inline_keyboard: await genServicesKeyboard(user, language) }
+                    );
+                    ctx.answerCbQuery();
                 }
-            }catch{}
+            }
         }
     }
 }
@@ -317,7 +334,7 @@ function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQue
     }
 }
 
-async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
+async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
     let searchersInfo = '';
 
     for (let searcher of searchers) {
@@ -327,17 +344,21 @@ async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpd
 
     const userCount = await usersCollection?.countDocuments();
 
-    ctx.reply('Бот разработан <a href="https://github.com/KD3n1z">Денисом Комарьковым</a>\n\nИспользованы библиотеки ' + usedLibs + '\n\nДоступные сервисы:' + searchersInfo + '\n\nВсего пользователей: ' + userCount + '\nMade with ❤️ and <a href="https://www.typescriptlang.org/">TypeScript</a>', {
+    ctx.reply(
+        language.about
+        .replaceAll('%usedLibs', usedLibs.replaceAll('%usedLibsAnd', language.usedLibsAnd))
+        .replaceAll('%searchersInfo', searchersInfo)
+        .replaceAll('%userCount', userCount + ""), {
         parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
             inline_keyboard: [
-                [{ text: "Купить мне кофе ☕️", url: "https://www.buymeacoffee.com/kd3n1z" }]
+                [{ text: language.donateButton, url: "https://www.buymeacoffee.com/kd3n1z" }]
             ]
         }
     });
 }
 
-async function sendServices(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
-    let buttons: InlineKeyboardButton[][] = genServicesKeyboard(await getUser(ctx));
+async function sendServices(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
+    const buttons: InlineKeyboardButton[][] = genServicesKeyboard(await getUser(ctx), language);
 
     await ctx.reply('Сервисы:', {
         reply_markup: {
@@ -346,7 +367,42 @@ async function sendServices(ctx: NarrowedContext<Context<Update>, Update.Message
     });
 }
 
-function genServicesKeyboard(user: IUser | null): InlineKeyboardButton[][] {
+async function sendLanguages(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
+    const buttons: InlineKeyboardButton[][] = genLangButtons();
+
+    await ctx.reply(await genCurrentLangText(ctx), {
+        reply_markup: {
+            inline_keyboard: buttons
+        }
+    });
+}
+
+function genLangButtons() {
+    let buttons: InlineKeyboardButton[][] = [];
+
+    for(let key of languages.keys()) {
+        let lang = languages.get(key);
+
+        if(!lang) {
+            continue;
+        }
+
+        buttons.push([{
+            text: lang.displayName,
+            callback_data: "sl " + key
+        }]);
+    }
+
+    return buttons;
+}
+
+async function genCurrentLangText(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>) {
+    const language = languages.get((await getUser(ctx)).language) ?? deafultLang;
+
+    return language.currentLang.replaceAll("%lang", language.displayName)
+}
+
+function genServicesKeyboard(user: IUser | null, language: ILanguage): InlineKeyboardButton[][] {
     let buttons: InlineKeyboardButton[][] = [];
 
     if(user == null) {
@@ -356,13 +412,13 @@ function genServicesKeyboard(user: IUser | null): InlineKeyboardButton[][] {
     for (let searcher of searchers) {
         const info = searcher.info();
         const enabled = user.searchers.includes(searcher.name);
-        buttons.push([{ text: searcher.prefix + " " + info.name + (enabled ? " - включен ✅" : " - выключен ❌"), callback_data: "s " + (enabled ? "d" : "e") + " " + searcher.name }]);
+        buttons.push([{ text: searcher.prefix + " " + (enabled ? language.serviceEnabled.replaceAll('%service', info.name) : language.serviceDisabled.replaceAll('%service', info.name)), callback_data: "s " + (enabled ? "d" : "e") + " " + searcher.name }]);
     }
 
     return buttons;
 }
 
-function getUsedLibs(): string {
+function genUsedLibs(): string {
     let result: string = '';
     let libs: string[] = Object.keys(require('./package.json').dependencies);
     let lastLib: string = libs.pop() as string;
@@ -373,7 +429,7 @@ function getUsedLibs(): string {
         }
     }
 
-    return result.slice(0, result.length - 2) + ' и <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
+    return result.slice(0, result.length - 2) + '%usedLibsAnd <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
 }
 
 console.log("loading languages...");

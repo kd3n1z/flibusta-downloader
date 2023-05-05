@@ -1,0 +1,29 @@
+{
+    "displayName": "🇬🇧 English",
+
+    "start": "Hello! 👋 I can download books from <a href=\"https://flibusta.is/\">flibusta</a> and other services (/services). 📚 Just send me the title of any book, Harry Potter, for example 📕",
+
+    "aboutButton": "About the bot",
+    "donateButton": "Buy me a coffee ☕️",
+
+    "searching": "Searching \"%query\" ⌛",
+    "bookMenu": "Select the book...",
+    "downloading": "Downloading %bookName ⌛",
+    "downloaded": "Downloading %bookName ✅",
+    "notFound": "Nothing found! 😔 Check your services list (/services).",
+
+    "currentLang": "Current language: %lang",
+
+    "about": "Developed by <a href=\"https://github.com/KD3n1z\">Denis Komarkov</a>\n\nLibraries used: %usedLibs\n\nServices available: %searchersInfo\n\nUser count: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
+    "usedLibsAnd": " and",
+
+    "serviceEnabled": "%service - enabled ✅",
+    "serviceDisabled": "%service - disabled ❌",
+
+    "errorCommandNotFound": "Command not found! 😔",
+    "errorQueryTooLong": "❌ Request is too long.",
+    "errorAlreadyDownloading": "You can't download two books at the same time ❌",
+    "errorDownloadFailed": "Download error! 😔",
+    "errorNotAvailable": "Download error - no file available! 😔",
+    "errorNotAvailableAnymore": "Download error! 😔 Maybe, the books isn't available anymore."
+}

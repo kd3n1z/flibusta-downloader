@@ -45,5 +45,11 @@ export interface ILanguage {
     downloading: string,
     errorDownloadFailed: string,
     errorNotAvailable: string,
-    errorNotAvailableAnymore: string
+    errorNotAvailableAnymore: string,
+    currentLang: string,
+    about: string,
+    usedLibsAnd: string,
+    serviceEnabled: string
+    serviceDisabled: string,
+    donateButton: string
 }
