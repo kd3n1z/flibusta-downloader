@@ -14,7 +14,7 @@ const fantasyworldsSearcher: ISearcher = {
 
             const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("td>div.news_title>a");
 
-            let result: IBook[] = [];
+            const result: IBook[] = [];
 
             for (const link of links) {
                 if (limit == 0) {

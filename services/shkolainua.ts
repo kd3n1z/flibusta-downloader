@@ -16,7 +16,7 @@ const shkolaSearcher: ISearcher = {
                 }, timeout: timeout
             });
 
-            let result: IBook[] = [];
+            const result: IBook[] = [];
 
             for (const book of resp.data.results) {
                 if (limit == 0) {

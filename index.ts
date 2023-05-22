@@ -10,7 +10,7 @@ import { flibustaSearcher } from "./services/flibusta";
 import { shkolaSearcher } from "./services/shkolainua";
 import { fantasyworldsSearcher } from "./services/fantasyworlds";
 
-require('dotenv').config();
+import "dotenv/config";
 
 const mongoClient = new MongoClient(process.env.MONGO_URL as string, { serverApi: ServerApiVersion.v1 });
 let usersCollection: Collection<Document> | null = null;
@@ -19,12 +19,12 @@ const defaultUser: IUser = { id: -1, totalBooksDownloaded: 0, searchers: ['flibu
 const usedLibs: string = genUsedLibs();
 const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
-let bannedBooks: string[] = [];
+const bannedBooks: string[] = [];
 let busyUsers: string[] = [];
 
 const timeout = 7000;
 
-let languages = new Map<string, ILanguage>([]);
+const languages = new Map<string, ILanguage>([]);
 let deafultLang: ILanguage = {} as ILanguage;
 
 const searchers: ISearcher[] = [
@@ -35,17 +35,17 @@ const searchers: ISearcher[] = [
 
 bot.on('message', async (ctx) => {
     (async () => {
-        try{
+        try {
             await handleMessage(ctx);
-        }catch{}
+        } catch { }
     })();
 });
 
 bot.on('callback_query', async (ctx) => {
     (async () => {
-        try{
+        try {
             await handleQuery(ctx);
-        }catch{}
+        } catch { }
     })();
 });
 
@@ -74,7 +74,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                     await sendAbout(ctx, language);
                 } else if (text.startsWith("/services")) {
                     await sendServices(ctx, language);
-                }  else if (text.startsWith("/lang")) {
+                } else if (text.startsWith("/lang")) {
                     await sendLanguages(ctx);
                 } else {
                     ctx.reply(language.errorCommandNotFound);
@@ -91,14 +91,14 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
 
                 const limit = 5;
 
-                let buttons: InlineKeyboardButton[][] = [];
+                const buttons: InlineKeyboardButton[][] = [];
 
                 for (const searcher of searchers) {
                     if (buttons.length >= limit) {
                         break;
                     }
 
-                    if(user && !user.searchers.includes(searcher.name)) {
+                    if (user && !user.searchers.includes(searcher.name)) {
                         continue;
                     }
 
@@ -242,7 +242,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
         } else if (data.startsWith("sl ")) {
             if (ctx.update.callback_query.message) {
                 user.language = data.slice(3); //sl english -> english
-                await updateUser(user.id, {language: user.language});
+                await updateUser(user.id, { language: user.language });
                 await ctx.telegram.editMessageText(
                     ctx.update.callback_query.message.chat.id,
                     ctx.update.callback_query.message.message_id,
@@ -258,21 +258,21 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
             }
         } else if (data.startsWith("s ")) {
             if (ctx.update.callback_query.message) {
-                if(user) {
+                if (user) {
                     const disable = data.split(' ')[1] == 'd';
                     const searcherName = data.slice(4); //s e/d [name] -> [name]
-                    
-                    if(disable) {
+
+                    if (disable) {
                         user.searchers = user.searchers.filter(e => {
                             return e != searcherName;
                         });
-                    }else{
-                        if(!user.searchers.includes(searcherName)) {
+                    } else {
+                        if (!user.searchers.includes(searcherName)) {
                             user.searchers.push(searcherName);
                         }
                     }
-                    
-                    await updateUser(user.id, {searchers: user.searchers});
+
+                    await updateUser(user.id, { searchers: user.searchers });
 
                     await ctx.telegram.editMessageReplyMarkup(
                         ctx.update.callback_query.message.chat.id,
@@ -289,16 +289,16 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
 
 async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>): Promise<IUser> {
     if (!usersCollection || !ctx.from) {
-        return {...defaultUser};
+        return { ...defaultUser };
     }
 
-    let user = await usersCollection.findOne({ id: ctx.from.id }) as any;
+    const user = await usersCollection.findOne({ id: ctx.from.id }) as any;
 
     if (user != null) {
         let needToUpdate = false;
 
-        for(const key of Object.keys(defaultUser)) {
-            if(user[key] == null) {
+        for (const key of Object.keys(defaultUser)) {
+            if (user[key] == null) {
                 user[key] = (defaultUser as any)[key];
                 needToUpdate = true;
             }
@@ -311,7 +311,7 @@ async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdat
         return user as IUser;
     }
 
-    const userDoc: IUser = {...defaultUser};
+    const userDoc: IUser = { ...defaultUser };
     userDoc.id = ctx.from.id;
     await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (maybe no...)
 
@@ -337,8 +337,8 @@ function removeFromBusy(ctx: NarrowedContext<Context<Update>, Update.CallbackQue
 async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
     let searchersInfo = '';
 
-    for (let searcher of searchers) {
-        let info = searcher.info();
+    for (const searcher of searchers) {
+        const info = searcher.info();
         searchersInfo += '\n' + searcher.prefix + ' <a href="' + info.href + '">' + searcher.name + '</a>';
     }
 
@@ -346,9 +346,9 @@ async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpd
 
     ctx.reply(
         language.about
-        .replaceAll('%usedLibs', usedLibs.replaceAll('%usedLibsAnd', language.usedLibsAnd))
-        .replaceAll('%searchersInfo', searchersInfo)
-        .replaceAll('%userCount', userCount + ""), {
+            .replaceAll('%usedLibs', usedLibs.replaceAll('%usedLibsAnd', language.usedLibsAnd))
+            .replaceAll('%searchersInfo', searchersInfo)
+            .replaceAll('%userCount', userCount + ""), {
         parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
             inline_keyboard: [
                 [{ text: language.donateButton, url: "https://www.buymeacoffee.com/kd3n1z" }]
@@ -378,12 +378,12 @@ async function sendLanguages(ctx: NarrowedContext<Context<Update>, Update.Messag
 }
 
 function genLangButtons() {
-    let buttons: InlineKeyboardButton[][] = [];
+    const buttons: InlineKeyboardButton[][] = [];
 
-    for(let key of languages.keys()) {
-        let lang = languages.get(key);
+    for (const key of languages.keys()) {
+        const lang = languages.get(key);
 
-        if(!lang) {
+        if (!lang) {
             continue;
         }
 
@@ -403,13 +403,13 @@ async function genCurrentLangText(ctx: NarrowedContext<Context<Update>, Update.M
 }
 
 function genServicesKeyboard(user: IUser | null, language: ILanguage): InlineKeyboardButton[][] {
-    let buttons: InlineKeyboardButton[][] = [];
+    const buttons: InlineKeyboardButton[][] = [];
 
-    if(user == null) {
+    if (user == null) {
         return [];
     }
 
-    for (let searcher of searchers) {
+    for (const searcher of searchers) {
         const info = searcher.info();
         const enabled = user.searchers.includes(searcher.name);
         buttons.push([{ text: searcher.prefix + " " + (enabled ? language.serviceEnabled.replaceAll('%service', info.name) : language.serviceDisabled.replaceAll('%service', info.name)), callback_data: "s " + (enabled ? "d" : "e") + " " + searcher.name }]);
@@ -419,11 +419,11 @@ function genServicesKeyboard(user: IUser | null, language: ILanguage): InlineKey
 }
 
 function genUsedLibs(): string {
-    let result: string = '';
-    let libs: string[] = Object.keys(require('./package.json').dependencies);
-    let lastLib: string = libs.pop() as string;
+    let result = '';
+    const libs: string[] = Object.keys(JSON.parse(readFileSync('package.json', { encoding: 'utf-8' })).dependencies);
+    const lastLib: string = libs.pop() as string;
 
-    for (let lib of libs) {
+    for (const lib of libs) {
         if (!lib.startsWith('@')) {
             result += '<a href="https://www.npmjs.com/package/' + lib + '">' + lib + '</a>, ';
         }
@@ -433,14 +433,14 @@ function genUsedLibs(): string {
 }
 
 console.log("loading languages...");
-for(const file of readdirSync("languages")) {
+for (const file of readdirSync("languages")) {
     console.log("\t" + file + "...");
-    const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), {encoding: 'utf-8'}));
+    const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), { encoding: 'utf-8' }));
     languages.set(path.basename(file).split('.')[0], lang);
     deafultLang = lang;
 }
 
-if(deafultLang) {
+if (deafultLang) {
     console.log("connecting to mongo...");
     if (process.env.MONGO_DB) {
         mongoClient.connect().then(() => {
@@ -456,6 +456,6 @@ if(deafultLang) {
     } else {
         console.log("error: db name not specified");
     }
-}else{
+} else {
     console.log("error: no default language");
 }

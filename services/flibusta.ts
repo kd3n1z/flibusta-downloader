@@ -14,7 +14,7 @@ const flibustaSearcher: ISearcher = {
 
             const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("#main>ul>li>a");
 
-            let result: IBook[] = [];
+            const result: IBook[] = [];
 
             for (const link of links) {
                 if (limit == 0) {
@@ -54,7 +54,7 @@ const flibustaSearcher: ISearcher = {
 
             let fb2 = false;
 
-            for (let link of document.querySelectorAll('a')) {
+            for (const link of document.querySelectorAll('a')) {
                 if (link.getAttribute('href') == '/b/' + bookId + '/fb2') {
                     fb2 = true;
                     break;
