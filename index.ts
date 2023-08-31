@@ -97,7 +97,7 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                         continue;
                     }
 
-                    const books = await searcher.search(text, limit, bannedBooks, timeout);
+                    const books = await searcher.search(text, limit - buttons.length, bannedBooks, timeout);
 
                     if (books == null) {
                         continue;
