@@ -35,17 +35,13 @@ const searchers: ISearcher[] = [
 
 bot.on('message', async (ctx) => {
     (async () => {
-        try {
-            await handleMessage(ctx);
-        } catch { }
+        await handleMessage(ctx);
     })();
 });
 
 bot.on('callback_query', async (ctx) => {
     (async () => {
-        try {
-            await handleQuery(ctx);
-        } catch { }
+        await handleQuery(ctx);
     })();
 });
 
