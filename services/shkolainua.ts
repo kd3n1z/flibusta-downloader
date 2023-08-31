@@ -1,6 +1,7 @@
 import axios from 'axios';
 import jsdom from 'jsdom';
 import { IBook, IDownloadData, ISearcher, ISearcherInfo } from "../types";
+import { getReservedUrl, reserveUrl } from '..';
 
 const shkolaSearcher: ISearcher = {
     'mirror': 'https://shkola.in.ua',
@@ -23,13 +24,14 @@ const shkolaSearcher: ISearcher = {
                     break;
                 }
                 const id: string = book.url.slice(1).slice(0, -5); // /[id].html -> [id]
-                if (bannedBooks.includes(id) || id.length > 64 - 'd shkola '.length) {
+
+                if (bannedBooks.includes(id)) {
                     continue;
                 }
 
                 result.push({
                     'name': book.title,
-                    'bookId': id
+                    'bookId': await reserveUrl(id)
                 });
                 limit--;
             }
@@ -47,12 +49,19 @@ const shkolaSearcher: ISearcher = {
     },
     getDownloadData: async function (bookId: string, timeout: number): Promise<IDownloadData | null> {
         try {
-            const resp = await axios.get((this.mirror as string) + '/' + bookId + '.html', { timeout: timeout });
+            const reservedUrl = await getReservedUrl(bookId);
+
+            if (reservedUrl == null) {
+                return null;
+            }
+
+            const resp = await axios.get((this.mirror as string) + '/' + reservedUrl + '.html', { timeout: timeout });
             const document: Document = new jsdom.JSDOM(resp.data).window.document;
+
             const url: string | undefined | null = document.querySelectorAll("a.button1")[0]?.getAttribute("href");
             const title: string | undefined | null = (document.querySelectorAll("h1")[0] as (HTMLElement | null))?.textContent?.trim();
 
-            if(url && title) {
+            if (url && title) {
                 return {
                     name: title,
                     url: url,

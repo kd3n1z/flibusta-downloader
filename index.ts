@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "fs";
 import path from "path";
 import { Context, NarrowedContext, Telegraf } from "telegraf";
-import { Collection, MatchKeysAndValues, MongoClient, OptionalId, ServerApiVersion } from "mongodb";
+import { Collection, MatchKeysAndValues, MongoClient, ObjectId, OptionalId, ServerApiVersion } from "mongodb";
 import { CallbackQuery, InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
 import { ISearcher, IUser, ILanguage } from "./types";
 
@@ -14,6 +14,7 @@ import "dotenv/config";
 
 const mongoClient = new MongoClient(process.env.MONGO_URL as string, { serverApi: ServerApiVersion.v1 });
 let usersCollection: Collection<Document> | null = null;
+let booksCollection: Collection<Document> | null = null;
 
 const defaultUser: IUser = { id: -1, totalBooksDownloaded: 0, searchers: ['flibusta'], language: 'russian' };
 const usedLibs: string = genUsedLibs();
@@ -204,7 +205,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                                 undefined,
                                 language.downloading.replaceAll("%bookName", '"' + downloadData.name + '"')
                             );
-
+                            
                             ctx.sendChatAction("upload_document");
                             ctx.replyWithDocument({
                                 url: downloadData.url,
@@ -235,7 +236,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
         } else if (data == "about") {
             await sendAbout(ctx, language);
             ctx.answerCbQuery();
-        } else if (data.startsWith("sl ")) {
+        } else if (data.startsWith("sl ")) { // set language
             if (ctx.update.callback_query.message) {
                 user.language = data.slice(3); //sl english -> english
                 await updateUser(user.id, { language: user.language });
@@ -252,7 +253,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                 );
                 ctx.answerCbQuery();
             }
-        } else if (data.startsWith("s ")) {
+        } else if (data.startsWith("s ")) { // service enable/disable
             if (ctx.update.callback_query.message) {
                 if (user) {
                     const disable = data.split(' ')[1] == 'd';
@@ -309,7 +310,7 @@ async function getUser(ctx: NarrowedContext<Context<Update>, Update.MessageUpdat
 
     const userDoc: IUser = { ...defaultUser };
     userDoc.id = ctx.from.id;
-    await usersCollection.insertOne(userDoc as any as OptionalId<Document>); // FIXME: (maybe no...)
+    await usersCollection.insertOne(userDoc as any as OptionalId<Document>);
 
     return await usersCollection.findOne({ id: ctx.from.id }) as any;
 }
@@ -428,6 +429,34 @@ function genUsedLibs(): string {
     return result.slice(0, result.length - 2) + '%usedLibsAnd <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
 }
 
+export async function reserveUrl(url: string): Promise<string> {
+    if (!booksCollection) {
+        return "null";
+    }
+
+    const book = await booksCollection.findOne({ url: url });
+
+    if (book != null) {
+        return book._id.toString();
+    } else {
+        return (await booksCollection.insertOne({ url: url } as any as OptionalId<Document>)).insertedId.toString();
+    }
+}
+
+export async function getReservedUrl(id: string): Promise<string | null> {
+    if (!booksCollection) {
+        return null;
+    }
+
+    const book = await booksCollection.findOne({ _id: new ObjectId(id) });
+
+    if (book == null) {
+        return null;
+    } else {
+        return (book as any).url;
+    }
+}
+
 function startBot() {
     console.log("loading languages...");
     for (const file of readdirSync("languages")) {
@@ -453,7 +482,15 @@ function startBot() {
                     return;
                 }
 
+                booksCollection = db.collection("books");
+                if (booksCollection == null) {
+                    console.log("error: books collection is null");
+                    mongoClient.close();
+                    return;
+                }
+
                 console.log("done, launching bot...");
+
                 process.on('uncaughtException', function (exception) {
                     console.error("unhandled error: " + exception);
                 });
