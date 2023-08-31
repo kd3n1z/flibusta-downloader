@@ -436,7 +436,7 @@ function startBot() {
         languages.set(path.basename(file).split('.')[0], lang);
         if (lang.default) {
             deafultLang = lang;
-            console.log ("\t\t- default")
+            console.log("\t\t- default");
         }
     }
 
@@ -444,12 +444,15 @@ function startBot() {
         console.log("connecting to mongo...");
         if (process.env.MONGO_DB) {
             mongoClient.connect().then(() => {
-                usersCollection = mongoClient.db(process.env.MONGO_DB as string).collection("users");
+                const db = mongoClient.db(process.env.MONGO_DB as string);
+
+                usersCollection = db.collection("users");
                 if (usersCollection == null) {
                     console.log("error: users collection is null");
                     mongoClient.close();
                     return;
                 }
+
                 console.log("done, launching bot...");
                 process.on('uncaughtException', function (exception) {
                     console.error("unhandled error: " + exception);
