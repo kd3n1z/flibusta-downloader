@@ -7,7 +7,6 @@ import { ISearcher, IUser, ILanguage } from "./types";
 
 // services
 import { flibustaSearcher } from "./services/flibusta";
-import { shkolaSearcher } from "./services/shkolainua";
 import { fantasyworldsSearcher } from "./services/fantasyworlds";
 
 import "dotenv/config";
@@ -30,7 +29,6 @@ let deafultLang: ILanguage = {} as ILanguage;
 
 const searchers: ISearcher[] = [
     flibustaSearcher,
-    shkolaSearcher,
     fantasyworldsSearcher
 ].sort((a, b) => b.priority - a.priority);
 
