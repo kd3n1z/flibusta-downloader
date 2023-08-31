@@ -432,30 +432,37 @@ function genUsedLibs(): string {
     return result.slice(0, result.length - 2) + '%usedLibsAnd <a href="https://www.npmjs.com/package/' + lastLib + '">' + lastLib + '</a>';
 }
 
-console.log("loading languages...");
-for (const file of readdirSync("languages")) {
-    console.log("\t" + file + "...");
-    const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), { encoding: 'utf-8' }));
-    languages.set(path.basename(file).split('.')[0], lang);
-    deafultLang = lang;
+function startBot() {
+    console.log("loading languages...");
+    for (const file of readdirSync("languages")) {
+        console.log("\t" + file + "...");
+        const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), { encoding: 'utf-8' }));
+        languages.set(path.basename(file).split('.')[0], lang);
+        deafultLang = lang;
+    }
+
+    if (deafultLang) {
+        console.log("connecting to mongo...");
+        if (process.env.MONGO_DB) {
+            mongoClient.connect().then(() => {
+                usersCollection = mongoClient.db(process.env.MONGO_DB as string).collection("users");
+                if (usersCollection == null) {
+                    console.log("error: users collection is null");
+                    mongoClient.close();
+                    return;
+                }
+                console.log("done, launching bot...");
+                process.on('uncaughtException', function (exception) {
+                    console.error("unhandled error: " + exception);
+                });
+                bot.launch();
+            });
+        } else {
+            console.log("error: db name not specified");
+        }
+    } else {
+        console.log("error: no default language");
+    }
 }
 
-if (deafultLang) {
-    console.log("connecting to mongo...");
-    if (process.env.MONGO_DB) {
-        mongoClient.connect().then(() => {
-            usersCollection = mongoClient.db(process.env.MONGO_DB as string).collection("users");
-            if (usersCollection == null) {
-                console.log("error: users collection is null");
-                mongoClient.close();
-                return;
-            }
-            console.log("done, launching bot...");
-            bot.launch();
-        });
-    } else {
-        console.log("error: db name not specified");
-    }
-} else {
-    console.log("error: no default language");
-}
+startBot();
