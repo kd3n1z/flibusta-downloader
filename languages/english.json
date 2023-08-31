@@ -1,4 +1,6 @@
 {
+    "default": false,
+
     "displayName": "🇬🇧 English",
 
     "start": "Hello! 👋 I can download books from <a href=\"https://flibusta.is/\">flibusta</a> and other services (/services). 📚 Just send me the title of any book, Harry Potter, for example 📕",

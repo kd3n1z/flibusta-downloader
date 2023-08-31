@@ -434,7 +434,10 @@ function startBot() {
         console.log("\t" + file + "...");
         const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), { encoding: 'utf-8' }));
         languages.set(path.basename(file).split('.')[0], lang);
-        deafultLang = lang;
+        if (lang.default) {
+            deafultLang = lang;
+            console.log ("\t\t- default")
+        }
     }
 
     if (deafultLang) {

@@ -32,6 +32,7 @@ export interface IUser {
 }
 
 export interface ILanguage {
+    default: boolean
     displayName: string,
     start: string,
     aboutButton: string,
