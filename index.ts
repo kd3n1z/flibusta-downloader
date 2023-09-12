@@ -8,6 +8,7 @@ import { ISearcher, IUser, ILanguage } from "./types";
 // services
 import { flibustaSearcher } from "./services/flibusta";
 import { fantasyworldsSearcher } from "./services/fantasyworlds";
+import { fourBookSearcher } from "./services/4book";
 
 import "dotenv/config";
 
@@ -29,7 +30,8 @@ let deafultLang: ILanguage = {} as ILanguage;
 
 const searchers: ISearcher[] = [
     flibustaSearcher,
-    fantasyworldsSearcher
+    fantasyworldsSearcher,
+    fourBookSearcher
 ].sort((a, b) => b.priority - a.priority);
 
 bot.on('message', async (ctx) => {
@@ -203,7 +205,7 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
                                 undefined,
                                 language.downloading.replaceAll("%bookName", '"' + downloadData.name + '"')
                             );
-                            
+
                             ctx.sendChatAction("upload_document");
                             ctx.replyWithDocument({
                                 url: downloadData.url,

@@ -10,7 +10,7 @@ const fantasyworldsSearcher: ISearcher = {
     'priority': 900,
     'search': async function (query: string, limit: number, bannedBooks: string[], timeout: number): Promise<IBook[] | null> {
         try {
-            const resp = await axios.get((this.mirror as string) + '/search/?q=' + encodeURI(query), { timeout: timeout });
+            const resp = await axios.get(this.mirror + '/search/?q=' + encodeURI(query), { timeout: timeout });
 
             const links: NodeListOf<Element> = new jsdom.JSDOM(resp.data).window.document.querySelectorAll("td>div.news_title>a");
 
@@ -48,13 +48,13 @@ const fantasyworldsSearcher: ISearcher = {
     },
     getDownloadData: async function (bookId: string, timeout: number): Promise<IDownloadData | null> {
         try {
-            const resp = await axios.get((this.mirror as string) + '/lib/id' + bookId, { timeout: timeout });
+            const resp = await axios.get(this.mirror + '/lib/id' + bookId, { timeout: timeout });
             const document: Document = new jsdom.JSDOM(resp.data).window.document;
             const title: string = document.querySelectorAll("h1")[0].textContent?.trim() as string;
 
             return {
                 name: title,
-                url: (this.mirror as string) + '/lib/id' + bookId + '/download',
+                url: this.mirror + '/lib/id' + bookId + '/download',
                 fileExtension: "zip"
             }
         } catch {
