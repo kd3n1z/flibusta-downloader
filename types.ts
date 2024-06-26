@@ -49,6 +49,7 @@ export interface ILanguage {
     errorNotAvailableAnymore: string,
     currentLang: string,
     about: string,
+    donation: string,
     usedLibsAnd: string,
     serviceEnabled: string
     serviceDisabled: string,

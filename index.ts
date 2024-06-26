@@ -69,6 +69,8 @@ async function handleMessage(ctx: NarrowedContext<Context<Update>, Update.Messag
                     });
                 } else if (text.startsWith("/about")) {
                     await sendAbout(ctx, language);
+                } else if (text.startsWith("/donate")) {
+                    await sendDonate(ctx, language);
                 } else if (text.startsWith("/services")) {
                     await sendServices(ctx, language);
                 } else if (text.startsWith("/lang")) {
@@ -236,6 +238,9 @@ async function handleQuery(ctx: NarrowedContext<Context<Update>, Update.Callback
         } else if (data == "about") {
             await sendAbout(ctx, language);
             ctx.answerCbQuery();
+        } else if (data == "donate") {
+            await sendDonate(ctx, language);
+            ctx.answerCbQuery();
         } else if (data.startsWith("sl ")) { // set language
             if (ctx.update.callback_query.message) {
                 user.language = data.slice(3); //sl english -> english
@@ -348,10 +353,14 @@ async function sendAbout(ctx: NarrowedContext<Context<Update>, Update.MessageUpd
             .replaceAll('%userCount', userCount + ""), {
         parse_mode: "HTML", disable_web_page_preview: true, reply_markup: {
             inline_keyboard: [
-                [{ text: language.donateButton, url: "https://www.buymeacoffee.com/kd3n1z" }]
+                [{ text: language.donateButton, callback_data: "donate" }]
             ]
         }
     });
+}
+
+async function sendDonate(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
+    ctx.reply(language.donation, { parse_mode: "HTML" });
 }
 
 async function sendServices(ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message> | Update.CallbackQueryUpdate<CallbackQuery>>, language: ILanguage) {
@@ -458,7 +467,7 @@ export async function getReservedUrl(id: string): Promise<string | null> {
 }
 
 function startBot() {
-    console.log("loading languages...");
+    console.log("parsing languages...");
     for (const file of readdirSync("languages")) {
         console.log("\t" + file + "...");
         const lang: ILanguage = JSON.parse(readFileSync(path.join("languages", file), { encoding: 'utf-8' }));

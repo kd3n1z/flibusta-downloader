@@ -6,7 +6,7 @@
     "start": "Привет! 👋 Я помогу тебе в скачивании книг с <a href=\"https://flibusta.is/\">флибусты</a> и других сервисов (/services). 📚 Просто отправь мне название любой книги. 1984, например 📕",
 
     "aboutButton": "Про бота",
-    "donateButton": "Купить мне кофе ☕️",
+    "donateButton": "Поддержать разработку 💸",
 
     "searching": "Ищем книгу \"%query\" ⌛",
     "bookMenu": "Выберите книгу...",
@@ -16,7 +16,8 @@
 
     "currentLang": "Текущий язык: %lang",
 
-    "about": "Бот разработан <a href=\"https://github.com/KD3n1z\">Денисом Комарьковым</a> 🇺🇦\n\nИспользованы библиотеки %usedLibs\n\nДоступные сервисы: %searchersInfo\n\nВсего пользователей: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
+    "about": "Бот разработан <a href=\"https://github.com/kd3n1z\">Денисом Комарьковым</a> 🇺🇦\n\nИспользованы библиотеки %usedLibs\n\nДоступные сервисы: %searchersInfo\n\nВсего пользователей: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
+    "donation": "Поддержать разработку 💸\n\n💳 <b>Ethereum, Matic, USDT (ERC20/Polygon):</b>\n<pre>0x834Eed7A101A7f32F621fdF9C4F9c6053C037D54</pre>\n\n💳 <b>USDT (TRC20):</b>\n<pre>TYdp1uxC8SbG4GZxpfLfDWfqSKXCPSHtyw</pre>\n\n💳 <b>BTC:</b>\n<pre>bc1qx82nfv30f0phsmna4t8daadmujgjzutl8tt0s2</pre>",
     "usedLibsAnd": " и",
 
     "services": "Сервисы:",

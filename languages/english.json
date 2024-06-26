@@ -6,7 +6,7 @@
     "start": "Hello! 👋 I can download books from <a href=\"https://flibusta.is/\">flibusta</a> and other services (/services). 📚 Just send me the title of any book, Harry Potter, for example 📕",
 
     "aboutButton": "About the bot",
-    "donateButton": "Buy me a coffee ☕️",
+    "donateButton": "Donate 💸",
 
     "searching": "Searching \"%query\" ⌛",
     "bookMenu": "Select the book...",
@@ -16,7 +16,8 @@
 
     "currentLang": "Current language: %lang",
 
-    "about": "Developed by <a href=\"https://github.com/KD3n1z\">Denis Komarkov</a> 🇺🇦\n\nLibraries used: %usedLibs\n\nServices available: %searchersInfo\n\nUser count: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
+    "about": "Developed by <a href=\"https://github.com/kd3n1z\">Denis Komarkov</a> 🇺🇦\n\nLibraries used: %usedLibs\n\nServices available: %searchersInfo\n\nUser count: %userCount\nMade with ❤️ and <a href=\"https://www.typescriptlang.org/\">TypeScript</a>",
+    "donation": "Support the development 💸\n\n💳 <b>Ethereum, Matic, USDT (ERC20/Polygon):</b>\n<pre>0x834Eed7A101A7f32F621fdF9C4F9c6053C037D54</pre>\n\n💳 <b>USDT (TRC20):</b>\n<pre>TYdp1uxC8SbG4GZxpfLfDWfqSKXCPSHtyw</pre>\n\n💳 <b>BTC:</b>\n<pre>bc1qx82nfv30f0phsmna4t8daadmujgjzutl8tt0s2</pre>",
     "usedLibsAnd": " and",
 
     "services": "Services:",
